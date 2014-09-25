@@ -17,25 +17,66 @@ using dbx_lib;
 
 namespace DbxEntityTracker
 {
+    class DbxMatches
+    {
+        public string Filepath { get; set; }
+        public List<int> LineNumbers { get; private set; }
+        public List<string> EntityType { get; private set; }
+
+        public DbxMatches()
+        {
+            LineNumbers = new List<int>();
+            EntityType = new List<string>();
+            Filepath = "";
+        }
+    }
+
+
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window
     {
-        private string DBX_ROOT = @"E:\rep\ws\FutureData\Source";
+        private string DBX_ROOT = @"E:\rep\ws\FutureData\Source\Gameplay";
         private string DDF_WSROOT = @"E:\rep\ws\tnt\code\ws";
         public MainWindow()
         {
             InitializeComponent();
             var lib = new LibMain();
-            //var files = lib.GetFilesOfType(DBX_ROOT, "dbx");
+            var allEntities = populateDDF(ref lib);
+            // need to generate "qualified name of entity" i.e. convert CameraDistanceEntity --> WSShared.CameraDistanceEntityData
+            // WSSoldierHealthComponent --> WSShared.WSSoldierHealthComponentData 
+            Console.WriteLine("-----------------\n Total Entities: {0}\n-----------------", allEntities.Keys.Count);
+
+            var dbxFilesWithEntities = populateDBX(ref lib);
+            Console.WriteLine("Parsing all dbx-files, found {0} files that might contain entities", dbxFilesWithEntities.Count);
+
+            var entityUsage = new Dictionary<string, List<string>>(); //Dictionary<EntityReference, DbxFile>
+            foreach (var entity in dbxFilesWithEntities)
+            {
+                foreach (var t in entity.EntityType)
+                {
+                    if (allEntities.Keys.Contains(t))
+                    {
+                        if (entityUsage.ContainsKey(t))
+                            entityUsage[t].Add(entity.Filepath);
+                        else
+                            entityUsage.Add(t, new List<string>() { entity.Filepath });
+                    }
+                }
+            }
+        }
+
+        private Dictionary<string, string> populateDDF(ref dbx_lib.LibMain lib)
+        {
             var ddfFiles = lib.GetFilesOfType(DDF_WSROOT, "ddf");
+
+            var entityTable = new Dictionary<string, string>();
 
             foreach (var file in ddfFiles)
             {
                 using (var sr = new StreamReader(file.FullName))
                 {
-                    List<string> entityNames = new List<string>();
                     int bracketCount = 0;
                     bool insideEntity = false;
                     while (!sr.EndOfStream)
@@ -43,54 +84,58 @@ namespace DbxEntityTracker
                         var line = sr.ReadLine().Trim();
                         if (!insideEntity && line.StartsWith("entity "))
                         {
-                            entityNames.Add(line.Substring("entity ".Length));
-                            //insideEntity = true; //haven't tried if this works or creates any issues...
+                            var name = line.Substring("entity ".Length);
+                            var fakename = "WSShared." + name + "Data"; //Append something
+                            entityTable.Add(fakename, file.FullName);
+                            insideEntity = true;
                         }
-                        //else if (insideEntity)
-                        //{
-                        //    if (line.Contains('{'))
-                        //        bracketCount++;
-                        //    if (line.Contains('}'))
-                        //        bracketCount--;
-                        //    if (bracketCount == 0)
-                        //        insideEntity = false;
-                        //}
+                        else if (insideEntity)
+                        {
+                            if (line.Contains('{'))
+                                bracketCount++;
+                            if (line.Contains('}'))
+                                bracketCount--;
+                            if (bracketCount == 0)
+                                insideEntity = false;
+                        }
                     }
-                    if (entityNames.Count > 0)
-                    {
-                        Console.WriteLine("-----------------\n Parsing: {0}\n Entities: {1}\n-----------------", file.FullName, entityNames.Count);
-                        entityNames.ForEach(a => Console.WriteLine(a));
-                    }
-                }
-
-                bool validGuid = asset.Guid.Length == DbxUtils.GUID_LENGTH;
-                bool validPrimaryInstance = asset.PrimaryInstance.Length == DbxUtils.GUID_LENGTH;
-                bool validAssetType = asset.Type.Length > 3;
-                if (validGuid && validPrimaryInstance && validAssetType)
-                {
-                    validGuid = true;
                 }
             }
-            //try
-            //{
-            //    lib.PopulateAssets(files);
-            //    var assets = lib.getAllAssets();
-            //    foreach (var asset in assets)
-            //    {
-            //        if (asset.FilePath.EndsWith("eorpersonalstats.dbx"))
-            //        {
-            //            int foo = 2;
-            //        }
-            //        if (asset.Type.ToLower() == "wsshared.clientstatsentitydata")
-            //        {
-            //            int foo = 1;
-            //        }
-            //    }
-            //}
-            //catch (Exception e)
-            //{
-            //    Console.WriteLine(e);
-            //}
+
+            return entityTable;
+        }
+
+        private List<DbxMatches> populateDBX(ref dbx_lib.LibMain lib)
+        {
+            var collection = new List<DbxMatches>();
+
+            var dbxFiles = lib.GetFilesOfType(DBX_ROOT, "dbx");
+            foreach (var file in dbxFiles)
+            {
+                using (var sr = new StreamReader(file.FullName))
+                {
+                    var asset = new DbxMatches();
+                    asset.Filepath = file.FullName;
+                    int lineNumber = 0;
+                    bool valid = false;
+                    while (!sr.EndOfStream)
+                    {
+                        var line = sr.ReadLine();
+                        lineNumber++;
+                        if (line.Contains("type=\""))
+                        {
+                            var assetType = DbxUtils.findSubstring(line, "type=\"", "\"");
+                            asset.LineNumbers.Add(lineNumber);
+                            asset.EntityType.Add(assetType);
+                            valid = true;
+                        }
+                    }
+                    if (valid)
+                        collection.Add(asset);
+                }
+            }
+
+            return collection;
         }
     }
 }
