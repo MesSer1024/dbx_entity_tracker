@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DbxEntityTracker", "DbxEntityTracker.csproj", "{8BF5D56A-7812-47D6-847F-8908021F628A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dbx_lib", "..\dbx_file_handler\dbx_lib\dbx_lib.csproj", "{83B212CE-DE5B-4761-BD13-FEC4EFC57B42}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -13,6 +15,10 @@ Global
 		{8BF5D56A-7812-47D6-847F-8908021F628A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8BF5D56A-7812-47D6-847F-8908021F628A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8BF5D56A-7812-47D6-847F-8908021F628A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{83B212CE-DE5B-4761-BD13-FEC4EFC57B42}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{83B212CE-DE5B-4761-BD13-FEC4EFC57B42}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{83B212CE-DE5B-4761-BD13-FEC4EFC57B42}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{83B212CE-DE5B-4761-BD13-FEC4EFC57B42}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
