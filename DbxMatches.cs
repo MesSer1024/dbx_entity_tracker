@@ -6,17 +6,30 @@ using System.Threading.Tasks;
 
 namespace DbxEntityTracker
 {
-    class DbxMatches
+    class DbxParsingData
     {
         public string Filepath { get; set; }
         public List<int> LineNumbers { get; private set; }
         public List<string> EntityType { get; private set; }
 
-        public DbxMatches()
+        public DbxParsingData()
         {
             LineNumbers = new List<int>();
             EntityType = new List<string>();
             Filepath = "";
         }
     }
+
+    public class DbxMatch
+    {
+        public string FilePath { get; set; }
+        public int LineNumber { get; set; }
+        public string EntityType { get; set; }
+
+        public override string ToString()
+        {
+            return FilePath;
+        }
+    }
+
 }

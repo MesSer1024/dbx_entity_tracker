@@ -40,9 +40,9 @@ namespace DbxEntityTracker
         {
             get { return _allEntities; }
         }
-        private IDictionary<string, List<string>> _entityUsage;
+        private IDictionary<string, List<DbxMatch>> _entityUsage;
 
-        public IDictionary<string, List<string>> EntityUsage
+        public IDictionary<string, List<DbxMatch>> EntityUsage
         {
             get { return _entityUsage; }
         }
@@ -90,6 +90,16 @@ namespace DbxEntityTracker
             timer.Restart();
         }
 
+        public string FindDdfSource(string entityIdentifier)
+        {
+            return _allEntities.ContainsKey(entityIdentifier) ? _allEntities[entityIdentifier] : null;
+        }
+
+        public List<DbxMatch> FindDbxReferences(string entityIdentifier)
+        {
+            return _entityUsage.ContainsKey(entityIdentifier) ? _entityUsage[entityIdentifier] : null;
+        }
+
         private IDictionary<string, string> populateDDF(FileInfo[] ddfFiles)
         {
             var entityTable = new ConcurrentDictionary<string, string>();
@@ -128,16 +138,16 @@ namespace DbxEntityTracker
             return new Dictionary<string, string>(entityTable); 
         }
 
-        private List<DbxMatches> populateDBX(FileInfo[] dbxFiles)
+        private List<DbxParsingData> populateDBX(FileInfo[] dbxFiles)
         {
-            var allCollections = new List<DbxMatches>();
+            var allCollections = new List<DbxParsingData>();
             var mutex = new object();
             Parallel.ForEach(dbxFiles, (file) =>
             {
-                var collection = new List<DbxMatches>();
+                var collection = new List<DbxParsingData>();
                 using (var sr = new StreamReader(file.FullName))
                 {
-                    var asset = new DbxMatches();
+                    var asset = new DbxParsingData();
                     asset.Filepath = file.FullName;
                     int lineNumber = 0;
                     bool valid = false;
@@ -170,20 +180,22 @@ namespace DbxEntityTracker
         /// <summary>
         /// Dictionary<EntityName, List<DbxFile>>
         /// </summary>
-        private IDictionary<string, List<string>> crossReferenceEntitiesWithDbxMatches(IDictionary<string, string> allEntities, List<DbxMatches> dbxMatches)
+        private IDictionary<string, List<DbxMatch>> crossReferenceEntitiesWithDbxMatches(IDictionary<string, string> allEntities, List<DbxParsingData> dbxMatches)
         {
-            var entityUsage = new Dictionary<string, List<string>>(); //Dictionary<EntityName, List<DbxFile>>
+            var entityUsage = new Dictionary<string, List<DbxMatch>>(); //Dictionary<EntityName, List<DbxFile>>
             foreach (var dbx in dbxMatches)
             {
+                int idx = 0;
                 foreach (var dbxType in dbx.EntityType)
                 {
                     //if (allEntities.Keys.Contains(dbxType))
                     if (allEntities.ContainsKey(dbxType))
                     {
+                        var asset = new DbxMatch() { FilePath = dbx.Filepath, LineNumber = dbx.LineNumbers[idx], EntityType = dbx.EntityType[idx] };
                         if (entityUsage.ContainsKey(dbxType))
-                            entityUsage[dbxType].Add(dbx.Filepath);
+                            entityUsage[dbxType].Add(asset);
                         else
-                            entityUsage.Add(dbxType, new List<string>() { dbx.Filepath });
+                            entityUsage.Add(dbxType, new List<DbxMatch>() { asset });
                     }
                 }
             }
@@ -191,7 +203,7 @@ namespace DbxEntityTracker
             return entityUsage;
         }
 
-        private static List<string> findUnusedEntities(IDictionary<string, string> all, IDictionary<string, List<string>> used)
+        private static List<string> findUnusedEntities(IDictionary<string, string> all, IDictionary<string, List<DbxMatch>> used)
         {
             var unusedEntities = new List<string>();
             foreach (var e in all)
@@ -219,6 +231,13 @@ namespace DbxEntityTracker
                 sw.Flush();
                 sw.Close();
             }
+        }
+
+        public DbxMatch GetDbxInfo(string key, int idx)
+        {
+            if(_entityUsage.ContainsKey(key) && idx < _entityUsage[key].Count)
+                return _entityUsage[key][idx];
+            return null;
         }
     }
 }

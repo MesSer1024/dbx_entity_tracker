@@ -1,7 +1,7 @@
 ﻿<Window x:Class="DbxEntityTracker.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="MainWindow" Height="350" Width="525">
+        Title="MainWindow" Height="800" Width="1200">
     <Grid>
         <DockPanel >
             <DockPanel DockPanel.Dock="Top">
@@ -24,11 +24,11 @@
                 <Button DockPanel.Dock="Right" Click="Button_Click_1">Parse Files</Button>
                 <Label />
             </DockPanel>
-            <DockPanel Name="_content" Visibility="Visible">
-                <ListBox MinWidth="250" DockPanel.Dock="Left" Name="_entities" SelectionChanged="_entities_SelectionChanged" />
-                <ListBox MinWidth="250" DockPanel.Dock="Left" Name="_references" />
+            <DockPanel Name="_content" Visibility="Visible" LastChildFill="True" >
+                <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_entities" SelectionChanged="_entities_SelectionChanged" />
+                <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_references" SelectionChanged="_references_SelectionChanged" />
+                <TextBox DockPanel.Dock="Right" Name="_infoPanel" MinWidth="250" IsReadOnly="True" />
             </DockPanel>
-            <Label />
         </DockPanel>
     </Grid>
 </Window>

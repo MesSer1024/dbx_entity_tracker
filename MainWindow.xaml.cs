@@ -75,10 +75,30 @@ namespace DbxEntityTracker
         private void _entities_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             var key = _entities.SelectedItem.ToString();
-            if (_lib.EntityUsage.ContainsKey(key))
-                _references.ItemsSource = _lib.EntityUsage[key];
+            _infoPanel.Text = _lib.FindDdfSource(key) ?? "";
+            _references.ItemsSource = _lib.FindDbxReferences(key);
+        }
+
+        private void _references_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var key = _entities.SelectedItem.ToString();
+            var idx = _references.SelectedIndex;
+            var sb = new StringBuilder(_infoPanel.Text);
+            sb.AppendLine();
+            sb.AppendLine();
+            sb.AppendLine("DbxInfo:");
+            var dbx = _lib.GetDbxInfo(key, idx);
+            if (dbx != null)
+            {
+                sb.AppendLine("FilePath: " + dbx.FilePath);
+                sb.AppendLine("LineNumber: " + dbx.LineNumber);
+                sb.AppendLine("EntityType: " + dbx.EntityType);
+            }
             else
-                _references.ItemsSource = null;
+            {
+                sb.AppendLine(String.Format("key: {0}, index: {1} is null", key, idx));
+            }
+            _infoPanel.Text = sb.ToString();
         }
 
     }
