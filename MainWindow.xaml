@@ -3,6 +3,32 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="MainWindow" Height="350" Width="525">
     <Grid>
-        
+        <DockPanel >
+            <DockPanel DockPanel.Dock="Top">
+                <Label>DDF Root:</Label>
+                <TextBox Name="ddfRoot" MinWidth="250"/>
+            </DockPanel>
+            <DockPanel DockPanel.Dock="Top">
+                <Label>DBX Root:</Label>
+                <TextBox Name="dbxRoot" MinWidth="250"/>
+            </DockPanel>
+            <DockPanel DockPanel.Dock="Top">
+                <Label>Entity Prefix:</Label>
+                <TextBox Name="prefix" MinWidth="250" />
+            </DockPanel>
+            <DockPanel DockPanel.Dock="Top">
+                <Label>Entity Suffix:</Label>
+                <TextBox Name="suffix" MinWidth="250"/>
+            </DockPanel>
+            <DockPanel DockPanel.Dock="Bottom">
+                <Button DockPanel.Dock="Right" Click="Button_Click_1">Parse Files</Button>
+                <Label />
+            </DockPanel>
+            <DockPanel Name="_content" Visibility="Visible">
+                <ListBox MinWidth="250" DockPanel.Dock="Left" Name="_entities" SelectionChanged="_entities_SelectionChanged" />
+                <ListBox MinWidth="250" DockPanel.Dock="Left" Name="_references" />
+            </DockPanel>
+            <Label />
+        </DockPanel>
     </Grid>
 </Window>
