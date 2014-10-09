@@ -4,30 +4,34 @@
         Title="MainWindow" Height="800" Width="1200">
     <Grid>
         <DockPanel >
-            <DockPanel DockPanel.Dock="Top">
-                <Label>DDF Root:</Label>
-                <TextBox Name="ddfRoot" MinWidth="250"/>
-            </DockPanel>
-            <DockPanel DockPanel.Dock="Top">
-                <Label>DBX Root:</Label>
-                <TextBox Name="dbxRoot" MinWidth="250"/>
-            </DockPanel>
-            <DockPanel DockPanel.Dock="Top">
-                <Label>Entity Prefix:</Label>
-                <TextBox Name="prefix" MinWidth="250" />
-            </DockPanel>
-            <DockPanel DockPanel.Dock="Top">
-                <Label>Entity Suffix:</Label>
-                <TextBox Name="suffix" MinWidth="250"/>
-            </DockPanel>
-            <DockPanel DockPanel.Dock="Bottom">
-                <Button DockPanel.Dock="Right" Click="Button_Click_1">Parse Files</Button>
+            <DockPanel Name="_parseOptions" MinWidth="500">
+                <DockPanel DockPanel.Dock="Top">
+                    <Label>DDF Root:</Label>
+                    <TextBox Name="ddfRoot" MinWidth="250" VerticalContentAlignment="Center"/>
+                </DockPanel>
+                <DockPanel DockPanel.Dock="Top">
+                    <Label>DBX Root:</Label>
+                    <TextBox Name="dbxRoot" MinWidth="250" VerticalContentAlignment="Center"/>
+                </DockPanel>
+                <DockPanel DockPanel.Dock="Top"/>
+                <DockPanel DockPanel.Dock="Top">
+                    <Label>Entity Suffix:</Label>
+                    <TextBox Name="suffix" MinWidth="250" VerticalContentAlignment="Center" />
+                </DockPanel>
+                <DockPanel DockPanel.Dock="Top">
+                    <Button Padding="6" Margin="10" DockPanel.Dock="Left" Click="Button_Click_1">Parse Files</Button>
+                    <Label />
+                </DockPanel>
                 <Label />
             </DockPanel>
-            <DockPanel Name="_content" Visibility="Visible" LastChildFill="True" >
+            <DockPanel Name="_content" Visibility="Visible">
+                <DockPanel DockPanel.Dock="Top">
+                    <Label>Filter:</Label>
+                    <TextBox Name="_textFilter" TextChanged="_textFilter_TextChanged" />
+                </DockPanel>
                 <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_entities" SelectionChanged="_entities_SelectionChanged" />
                 <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_references" SelectionChanged="_references_SelectionChanged" />
-                <TextBox DockPanel.Dock="Right" Name="_infoPanel" MinWidth="250" IsReadOnly="True" />
+                <TextBox DockPanel.Dock="Right" Name="_infoPanel" MinWidth="250" IsReadOnly="True" HorizontalContentAlignment="Center" Text="Info Panel!" Margin="30" />
             </DockPanel>
         </DockPanel>
     </Grid>

@@ -11,7 +11,6 @@ namespace DbxEntityTracker
     {
         public static string DBX_ROOT = @"E:\rep\ws\FutureData\Source\";
         public static string DDF_WSROOT = @"E:\rep\ws\tnt\code\ws";
-        public static string ENTITY_PREFIX = "WSShared.";
         public static string ENTITY_SUFFIX = "Data";
 
         internal static void load()
@@ -39,10 +38,6 @@ namespace DbxEntityTracker
                         {
                             DDF_WSROOT = value;
                         }
-                        else if (line.StartsWith("prefix|"))
-                        {
-                            ENTITY_PREFIX = value;
-                        }
                         else if (line.StartsWith("suffix|"))
                         {
                             ENTITY_SUFFIX = value;
@@ -61,7 +56,6 @@ namespace DbxEntityTracker
             {
                 sw.Write("dbx|" + DBX_ROOT);
                 sw.Write("ddf|" + DDF_WSROOT);
-                sw.Write("prefix|" + ENTITY_PREFIX);
                 sw.Write("suffix|" + ENTITY_SUFFIX);
                 sw.Flush();
                 sw.Close();

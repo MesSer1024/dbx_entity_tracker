@@ -38,7 +38,6 @@ namespace DbxEntityTracker
         {
             this.dbxRoot.Text = AppSettings.DBX_ROOT;
             this.ddfRoot.Text = AppSettings.DDF_WSROOT;
-            this.prefix.Text = AppSettings.ENTITY_PREFIX;
             this.suffix.Text = AppSettings.ENTITY_SUFFIX;
         }
 
@@ -46,7 +45,6 @@ namespace DbxEntityTracker
         {
             AppSettings.DBX_ROOT = this.dbxRoot.Text;
             AppSettings.DDF_WSROOT = this.ddfRoot.Text;
-            AppSettings.ENTITY_PREFIX = this.prefix.Text;
             AppSettings.ENTITY_SUFFIX = this.suffix.Text;
         }
 
@@ -69,6 +67,7 @@ namespace DbxEntityTracker
                 AppSettings.save();
                 _content.Visibility = System.Windows.Visibility.Visible;
                 _entities.ItemsSource = _lib.AllEntities.Keys;
+                _parseOptions.Visibility = System.Windows.Visibility.Collapsed;
             }
         }
 
@@ -99,6 +98,25 @@ namespace DbxEntityTracker
                 sb.AppendLine(String.Format("key: {0}, index: {1} is null", key, idx));
             }
             _infoPanel.Text = sb.ToString();
+        }
+
+        private void _textFilter_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            var all = _lib.AllEntities.Keys.ToList();
+            if (all == null || all.Count == 0)
+            {
+                return;
+            }
+            var filter = _textFilter.Text;
+            if (filter != "")
+            {   
+                _entities.ItemsSource = all.FindAll(a => a.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0);
+            }
+            else
+            {
+                _entities.ItemsSource = all;
+            }
+            _entities.Items.Refresh();
         }
 
     }

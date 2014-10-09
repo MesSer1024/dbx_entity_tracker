@@ -110,14 +110,24 @@ namespace DbxEntityTracker
                 {
                     int bracketCount = 0;
                     bool insideEntity = false;
+                    bool moduleLocated = false;
+                    string module = "";
                     while (!sr.EndOfStream)
                     {
                         var line = sr.ReadLine().Trim();
-                        if (!insideEntity && line.StartsWith("entity "))
+                        if (!moduleLocated && line.StartsWith("module"))
                         {
+                            module = line.Split('=')[1];
+                            Console.WriteLine("Module located inside file: {0}, module=''{1}''", file, module);
+                            moduleLocated = false; //set to true soon... just make sure that no file contains multiple modules
+                        }
+                        else if (!insideEntity && line.StartsWith("entity "))
+                        {
+                            if (module.Length < 2)
+                                throw new Exception(String.Format("Unable to find module inside DDF-file ({0})", file));
                             var name = line.Substring("entity ".Length);
                             name = name.Split(':')[0].Trim();
-                            var fakename = "WSShared." + name + "Data"; //Append something
+                            var fakename = module + "." + name + "Data";
                             entityTable.GetOrAdd(fakename, file.FullName);
                             insideEntity = true;
                         }
