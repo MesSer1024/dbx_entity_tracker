@@ -73,6 +73,8 @@ namespace DbxEntityTracker
 
         private void _entities_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_entities.SelectedItem == null)
+                return;
             var key = _entities.SelectedItem.ToString();
             _infoPanel.Text = _lib.FindDdfSource(key) ?? "";
             _references.ItemsSource = _lib.FindDbxReferences(key);
@@ -82,7 +84,12 @@ namespace DbxEntityTracker
         {
             var key = _entities.SelectedItem.ToString();
             var idx = _references.SelectedIndex;
-            var sb = new StringBuilder(_infoPanel.Text);
+            if (idx < 0 || key == "")
+            {
+                _infoPanel.Text = "";
+                return;
+            }
+            var sb = new StringBuilder(_lib.FindDdfSource(key));
             sb.AppendLine();
             sb.AppendLine();
             sb.AppendLine("DbxInfo:");
