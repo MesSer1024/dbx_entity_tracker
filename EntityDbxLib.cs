@@ -7,10 +7,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
-using dbx_lib;
+using Newtonsoft.Json;
 
 namespace DbxEntityTracker
 {
+    class SavedData
+    {
+        public IDictionary<string, string> AllEntities { get; set; }
+        public IDictionary<string, List<DbxMatch>> EntityUsage { get; set; }
+    }
+
     class EntityDbxLib
     {
         public class EntityReference
@@ -19,21 +25,6 @@ namespace DbxEntityTracker
             public string DdfFile { get; set; }
         }
 
-
-
-        public enum TimestampIdentifiers
-        {
-            StartTime,
-            DdfIO,
-            DdfPopulate,
-            DbxIO,
-            DbxPopulate,
-            CheckReferences,
-            TotalTime,
-        }
-
-        private List<long> _timestamps;
-        private List<TimestampIdentifiers> _timestampIdentifiers;
         private IDictionary<string, string> _allEntities;
 
         public IDictionary<string, string> AllEntities
@@ -46,58 +37,30 @@ namespace DbxEntityTracker
         {
             get { return _entityUsage; }
         }
-        public List<long> getTimestamps() { return _timestamps; }
-        public List<TimestampIdentifiers> getTimestampDescriptions() { return _timestampIdentifiers; }
 
         public void init()
         {
-            _timestampIdentifiers = new List<TimestampIdentifiers>();
-            _timestamps = new List<long>(6);
-
-            var lib = new LibMain();
-            Stopwatch timer = new Stopwatch();
-            timer.Start();
-            createTimestamp(TimestampIdentifiers.StartTime, timer);
-            var ddfFiles = lib.GetFilesOfType(AppSettings.DDF_WSROOT, "ddf");
-            createTimestamp(TimestampIdentifiers.DdfIO, timer);
+            var ddfFiles = GetFilesOfType(AppSettings.DDF_WSROOT, "ddf");
             _allEntities = populateDDF(ddfFiles);
-            createTimestamp(TimestampIdentifiers.DdfPopulate, timer);
             Console.WriteLine("-----------------\n Total Entities: {0}\n-----------------", _allEntities.Keys.Count);
 
-            var dbxFiles = lib.GetFilesOfType(AppSettings.DBX_ROOT, "dbx");
-            createTimestamp(TimestampIdentifiers.DbxIO, timer);
+            var dbxFiles = GetFilesOfType(AppSettings.DBX_ROOT, "dbx");
             var dbxMatches = populateDBX(dbxFiles);
-            createTimestamp(TimestampIdentifiers.DbxPopulate, timer);
             Console.WriteLine("Parsing all dbx-files, found {0} files that might contain entities", dbxMatches.Count);
 
             _entityUsage = crossReferenceEntitiesWithDbxMatches(_allEntities, dbxMatches);
-            createTimestamp(TimestampIdentifiers.CheckReferences, timer);
-
-            Console.WriteLine("Time to populate ddf files: {0}ms", (_timestamps[2] - _timestamps[0]));
-            Console.WriteLine("Time to populate dbx files: {0}ms", (_timestamps[4] - _timestamps[2]));
-            Console.WriteLine("Time to map dbx files to entities: {0}ms", (_timestamps[5] - _timestamps[4]));
-            Console.WriteLine("Total Time: {0}ms", (_timestamps[5] - _timestamps[0]));
 
             var unusedEntities = findUnusedEntities(_allEntities, _entityUsage);
             writeUnusedEntities(unusedEntities);
-            int foo = 0;
         }
 
-        private void createTimestamp(TimestampIdentifiers id, Stopwatch timer)
+        public FileInfo[] GetFilesOfType(string rootFolder, string fileType)
         {
-            _timestampIdentifiers.Add(id);
-            _timestamps.Add(timer.ElapsedMilliseconds);
-            timer.Restart();
-        }
-
-        public string FindDdfSource(string entityIdentifier)
-        {
-            return _allEntities.ContainsKey(entityIdentifier) ? _allEntities[entityIdentifier] : null;
-        }
-
-        public List<DbxMatch> FindDbxReferences(string entityIdentifier)
-        {
-            return _entityUsage.ContainsKey(entityIdentifier) ? _entityUsage[entityIdentifier] : null;
+            var dir = new DirectoryInfo(rootFolder.ToLower());
+            if (!dir.Exists)
+                throw new ArgumentException(String.Format("Folder does not exist: {0}", rootFolder));
+            Console.WriteLine("Searching for all dbx-files in folder:\n\t{0}", dir.FullName);
+            return dir.GetFiles("*." + fileType, SearchOption.AllDirectories);
         }
 
         private IDictionary<string, string> populateDDF(FileInfo[] ddfFiles)
@@ -167,9 +130,9 @@ namespace DbxEntityTracker
                         lineNumber++;
                         if (line.Contains("type=\""))
                         {
-                            var assetType = DbxUtils.findSubstring(line, "type=\"", "\"");
+                            var assetType = findSubstring(line, "type=\"", "\"");
                             asset.LineNumbers.Add(lineNumber);
-                            asset.EntityType.Add(assetType);
+                            asset.EntityTypes.Add(assetType);
                             valid = true;
                         }
                     }
@@ -187,6 +150,20 @@ namespace DbxEntityTracker
             return allCollections;
         }
 
+        private string findSubstring(string source, string identifier, int count)
+        {
+            var idx = source.IndexOf(identifier);
+            return source.Substring(idx + identifier.Length, count);
+        }
+
+        private string findSubstring(string source, string startIdentifier, string endIdentifier)
+        {
+            var startIdx = source.IndexOf(startIdentifier) + startIdentifier.Length;
+            var endIdx = source.IndexOf(endIdentifier, startIdx + 1);
+            return source.Substring(startIdx, endIdx - startIdx);
+        }
+
+
         /// <summary>
         /// Dictionary<EntityName, List<DbxFile>>
         /// </summary>
@@ -196,17 +173,18 @@ namespace DbxEntityTracker
             foreach (var dbx in dbxMatches)
             {
                 int idx = 0;
-                foreach (var dbxType in dbx.EntityType)
+                foreach (var dbxType in dbx.EntityTypes)
                 {
                     //if (allEntities.Keys.Contains(dbxType))
                     if (allEntities.ContainsKey(dbxType))
                     {
-                        var asset = new DbxMatch() { FilePath = dbx.Filepath, LineNumber = dbx.LineNumbers[idx], EntityType = dbx.EntityType[idx] };
+                        var asset = new DbxMatch() { FilePath = dbx.Filepath, LineNumber = dbx.LineNumbers[idx], EntityType = dbx.EntityTypes[idx] };
                         if (entityUsage.ContainsKey(dbxType))
                             entityUsage[dbxType].Add(asset);
                         else
                             entityUsage.Add(dbxType, new List<DbxMatch>() { asset });
                     }
+                    idx++;
                 }
             }
 
@@ -248,6 +226,53 @@ namespace DbxEntityTracker
             if(_entityUsage.ContainsKey(key) && idx < _entityUsage[key].Count)
                 return _entityUsage[key][idx];
             return null;
+        }
+
+        public string FindDdfSource(string entityIdentifier)
+        {
+            return _allEntities.ContainsKey(entityIdentifier) ? _allEntities[entityIdentifier] : null;
+        }
+
+        public List<DbxMatch> FindDbxReferences(string entityIdentifier)
+        {
+            return _entityUsage.ContainsKey(entityIdentifier) ? _entityUsage[entityIdentifier] : null;
+        }
+
+        private void save()
+        {
+            var file = new FileInfo("./output/_LastSave.det");
+            if (!file.Directory.Exists)
+                file.Directory.Create();
+
+            var save = new SavedData();
+            save.AllEntities = AllEntities;
+            save.EntityUsage = EntityUsage;
+            var output = JsonConvert.SerializeObject(save);
+            using (var sw = new StreamWriter(file.FullName, false))
+            {
+                sw.Write(output);
+                sw.Flush();
+            }
+        }
+
+
+        public void load(string filePath)
+        {
+            var file = new FileInfo(filePath);
+            if (file.Exists)
+            {
+                using (var sr = new StreamReader(file.FullName))
+                {
+                    string s = sr.ReadToEnd();
+                    var load = JsonConvert.DeserializeObject<SavedData>(s);
+                    _allEntities = load.AllEntities;
+                    _entityUsage = load.EntityUsage;
+                }
+            }
+            else
+            {
+                throw new Exception(String.Format("File does not exist \"{0}\"", filePath));
+            }
         }
     }
 }

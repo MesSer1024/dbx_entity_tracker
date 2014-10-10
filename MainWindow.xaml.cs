@@ -13,8 +13,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using dbx_lib;
 using System.Collections.Concurrent;
+using Microsoft.Win32;
 
 namespace DbxEntityTracker
 {
@@ -119,5 +119,18 @@ namespace DbxEntityTracker
             _entities.Items.Refresh();
         }
 
+        private void onLoad(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog();
+            dlg.Filter = "DbxEntityTracker Save (*.det)|*.det";
+            dlg.Multiselect = false;
+            dlg.FileOk += (dlgSender, args) => {
+                _lib.load((dlgSender as OpenFileDialog).FileName);
+            };
+            dlg.InitialDirectory = Environment.CurrentDirectory + "\\output\\";
+            dlg.FileName = "_lastSave.det";
+            dlg.Title = "Selected a previous search";
+            dlg.ShowDialog();
+        }
     }
 }

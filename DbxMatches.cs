@@ -10,12 +10,12 @@ namespace DbxEntityTracker
     {
         public string Filepath { get; set; }
         public List<int> LineNumbers { get; private set; }
-        public List<string> EntityType { get; private set; }
+        public List<string> EntityTypes { get; private set; }
 
         public DbxParsingData()
         {
             LineNumbers = new List<int>();
-            EntityType = new List<string>();
+            EntityTypes = new List<string>();
             Filepath = "";
         }
     }
