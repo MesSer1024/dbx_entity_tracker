@@ -1,0 +1,17 @@
+Hi Daniel, for your entity search tool, could we get support for quickly resolving entity Ids so we can make sense of messages like this:
+../Code/Engine\Entity\EntityBus\ProxyEntityBus.cpp(242): "Job3[0+3]": Warning: Trying to deregister peer in ProxyEntityBus which is not registered. Registered data: null, calling data: [[B44B1C5D-3E4A-11E4-9BCF-A0B820C93C87/E76D7B62-11EF-432C-A9C9-3DC49A80D2B7|Gameplay/Characters/AIStormTrooper]], registered peer: [null], calling peer: [[B44B1C5D-3E4A-11E4-9BCF-A0B820C93C87/E76D7B62-11EF-432C-A9C9-3DC49A80D2B7|Gameplay/Characters/AIStormTrooper]]
+
+That would be cool. As a bonus, the UI now has a telemetry system that uses its own (retail-available and more compatible with runtime-instantiated widgets) IDs. Need to fix it ? but it will generate files like this:
+
+WIDGET            TestRanges/TestRange_UI/Layouting/StackLayoutExampleWidget           108895280                             WSShared.StackLayoutWidgetData                frosted://Whiteshark;@5EBD1D08-E7CD-11E3-8246-BDAA859D1B87/BAA39238-E161-C23B-A6DA-77F45F147FBE
+ELEMENT          1106103732      1200640388      HEADER             HeaderZone    WSShared.StackLayoutZoneEntityData                             frosted://Whiteshark;@5EBD1D08-E7CD-11E3-8246-BDAA859D1B87/7CB54864-850E-46C6-9EFA-7E723671C021
+ELEMENT          211180629        183222373        HEADER             Title                    WSShared.WSUIElementTextEntityData                             frosted://Whiteshark;@5EBD1D08-E7CD-11E3-8246-BDAA859D1B87/D9CE4A41-2320-4558-A594-37F507A1EE0C
+ELEMENT          767877129        733576249        LIST                     ListZone            WSShared.StackLayoutZoneEntityData                             frosted://Whiteshark;@5EBD1D08-E7CD-11E3-8246-BDAA859D1B87/425B117A-097B-461F-BDCD-1AF4BD2CE1F2
+ELEMENT          1613298460      1716873004      LIST                     ListReference WSShared.StandardListElementData                             frosted://Whiteshark;@5EBD1D08-E7CD-11E3-8246-BDAA859D1B87/0B56FB5D-8025-45A8-8064-AE17FE1B0F15
+ELEMENT          99316270          60223006          FOOTER             FooterZone     WSShared.StackLayoutZoneEntityData                             frosted://Whiteshark;@5EBD1D08-E7CD-11E3-8246-BDAA859D1B87/A92C0EBB-63BB-4AB5-B7C1-2014FBCBBBCB
+ELEMENT          99354285          59873949          FOOTER             FooterText      WSShared.WSUIElementTextEntityData                             frosted://Whiteshark;@5EBD1D08-E7CD-11E3-8246-BDAA859D1B87/B66E427A-25DD-4D06-B228-EAD72CC748FC
+
+The first line is the widget, the other lines are the elements it includes. The numbers are the generated IDs, for elements the first one is the interesting one. Might be great if your tool could resolve those as well?
+
+Moritz
+

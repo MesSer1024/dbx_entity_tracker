@@ -30,8 +30,16 @@ namespace DbxEntityTracker
             InitializeComponent();
 
             _lib = new EntityDbxLib();
+            AppSettings.load();
             readFromAppSettings();
             _content.Visibility = System.Windows.Visibility.Collapsed;
+            Application.Current.DispatcherUnhandledException += Current_DispatcherUnhandledException;
+        }
+
+        void Current_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+        {
+            applicationCrash(e.Exception);
+            Application.Current.Shutdown();
         }
 
         private void readFromAppSettings()
@@ -59,7 +67,7 @@ namespace DbxEntityTracker
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message);
+                applicationCrash(ex);
             }
 
             if (success)
@@ -68,7 +76,33 @@ namespace DbxEntityTracker
                 _content.Visibility = System.Windows.Visibility.Visible;
                 _entities.ItemsSource = _lib.AllEntities.Keys;
                 _parseOptions.Visibility = System.Windows.Visibility.Collapsed;
+                _lib.save();
+                showEntities();
             }
+        }
+
+        private void applicationCrash(Exception ex)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine(ex.Message);
+            if(ex.InnerException != null)
+                sb.AppendLine(ex.InnerException.ToString());
+            sb.AppendLine();
+            sb.AppendLine();
+            sb.AppendLine(ex.StackTrace);
+            var filename = Utils.NextAvailableFilename("./crash/crashdump.foo");
+            var fi = new FileInfo(filename);
+            if (!fi.Directory.Exists)
+                fi.Directory.Create();
+            File.WriteAllText(filename, sb.ToString());
+            MessageBox.Show(sb.ToString());
+        }
+
+        private void showEntities()
+        {
+            _content.Visibility = System.Windows.Visibility.Visible;
+            _entities.ItemsSource = _lib.AllEntities.Keys;
+            _parseOptions.Visibility = System.Windows.Visibility.Collapsed;
         }
 
         private void _entities_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -133,6 +167,7 @@ namespace DbxEntityTracker
             dlg.Multiselect = false;
             dlg.FileOk += (dlgSender, args) => {
                 _lib.load((dlgSender as OpenFileDialog).FileName);
+                showEntities();
             };
             dlg.InitialDirectory = Environment.CurrentDirectory + "\\output\\";
             dlg.FileName = "_lastSave.det";

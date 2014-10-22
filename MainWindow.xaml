@@ -20,6 +20,7 @@
                 </DockPanel>
                 <DockPanel DockPanel.Dock="Top">
                     <Button Padding="6" Margin="10" DockPanel.Dock="Left" Click="Button_Click_1">Parse Files</Button>
+                    <Button Padding="6" Margin="10" DockPanel.Dock="Left" Click="onLoad">Load Data</Button>
                     <Label />
                 </DockPanel>
                 <Label />

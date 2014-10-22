@@ -54,9 +54,9 @@ namespace DbxEntityTracker
                 file.Directory.Create();
             using (var sw = new StreamWriter(file.FullName, false))
             {
-                sw.Write("dbx|" + DBX_ROOT);
-                sw.Write("ddf|" + DDF_WSROOT);
-                sw.Write("suffix|" + ENTITY_SUFFIX);
+                sw.WriteLine("dbx|" + DBX_ROOT);
+                sw.WriteLine("ddf|" + DDF_WSROOT);
+                sw.WriteLine("suffix|" + ENTITY_SUFFIX);
                 sw.Flush();
                 sw.Close();
             }

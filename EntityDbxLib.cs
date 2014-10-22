@@ -81,14 +81,18 @@ namespace DbxEntityTracker
                         if (!moduleLocated && line.StartsWith("module"))
                         {
                             module = line.Split(' ')[1];
-                            module = module.Remove(module.Length - 1);
+                            if (module.Length > 0)
+                                module = module.Remove(module.Length - 1);
                             Console.WriteLine("Module located inside file: {0}, module=''{1}''", file, module);
                             moduleLocated = false; //set to true soon... just make sure that no file contains multiple modules
                         }
                         else if (!insideEntity && line.StartsWith("entity "))
                         {
                             if (module.Length == 0)
-                                throw new Exception(String.Format("Unable to find module inside DDF-file ({0})", file));
+                            {
+                                //throw new Exception(String.Format("Unable to find module inside DDF-file ({0})", file));
+								module = "foo";
+                            }
                             var name = line.Substring("entity ".Length);
                             name = name.Split(':')[0].Trim();
                             var fakename = module + "." + name + "Data";
@@ -213,13 +217,7 @@ namespace DbxEntityTracker
                 sb.AppendLine(u);
             }
             Console.WriteLine("Unused Entities: {0}", sb.ToString());
-
-            using (var sw = new StreamWriter("../../_docs/unused_entities.txt", false))
-            {
-                sw.Write(sb.ToString());
-                sw.Flush();
-                sw.Close();
-            }
+            writeFile("./output/unused_entities.txt", sb.ToString());
         }
 
         public DbxMatch GetDbxInfo(string key, int idx)
@@ -239,23 +237,27 @@ namespace DbxEntityTracker
             return _entityUsage.ContainsKey(entityIdentifier) ? _entityUsage[entityIdentifier] : null;
         }
 
-        private void save()
+        public void save()
         {
-            var file = new FileInfo("./output/_LastSave.det");
-            if (!file.Directory.Exists)
-                file.Directory.Create();
-
             var save = new SavedData();
             save.AllEntities = AllEntities;
             save.EntityUsage = EntityUsage;
             var output = JsonConvert.SerializeObject(save);
+            writeFile("./output/_LastSave.det", output);
+        }
+
+        private void writeFile(string path, string data)
+        {
+            var file = new FileInfo(path);
+            if (!file.Directory.Exists)
+                file.Directory.Create();
+
             using (var sw = new StreamWriter(file.FullName, false))
             {
-                sw.Write(output);
+                sw.Write(data);
                 sw.Flush();
             }
         }
-
 
         public void load(string filePath)
         {
