@@ -4,6 +4,17 @@
         Title="MainWindow" Height="800" Width="1200">
     <Grid>
         <DockPanel >
+            <Menu DockPanel.Dock="Top" Name="_menu">
+                <MenuItem Header="File">
+                    <MenuItem Header="New Search" Click="onNewSearchClick" />
+                </MenuItem>
+            </Menu>
+            <DockPanel Name="_loading" MinWidth="600" MinHeight="300" Visibility="Visible">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Label Name="_loadingText" Content="Foobar!" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Label Name="_time" Content="Loading" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </StackPanel>
+            </DockPanel>
             <DockPanel Name="_parseOptions" MinWidth="500">
                 <DockPanel DockPanel.Dock="Top">
                     <Label>DDF Root:</Label>
@@ -19,7 +30,7 @@
                     <TextBox Name="suffix" MinWidth="250" VerticalContentAlignment="Center" />
                 </DockPanel>
                 <DockPanel DockPanel.Dock="Top">
-                    <Button Padding="6" Margin="10" DockPanel.Dock="Left" Click="Button_Click_1">Parse Files</Button>
+                    <Button Padding="6" Margin="10" DockPanel.Dock="Left" Click="onPopulateClick">Parse Files</Button>
                     <Button Padding="6" Margin="10" DockPanel.Dock="Left" Click="onLoad">Load Data</Button>
                     <Label />
                 </DockPanel>

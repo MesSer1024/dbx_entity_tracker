@@ -15,6 +15,9 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Collections.Concurrent;
 using Microsoft.Win32;
+using System.Threading;
+using System.ComponentModel;
+using DbxEntityTracker.commands;
 
 namespace DbxEntityTracker
 {
@@ -25,18 +28,16 @@ namespace DbxEntityTracker
     public partial class MainWindow : Window
     {
         private EntityDbxLib _lib;
+        private System.Timers.Timer _timer;
         public MainWindow()
         {
             InitializeComponent();
-
-            _lib = new EntityDbxLib();
             AppSettings.load();
-            readFromAppSettings();
-            _content.Visibility = System.Windows.Visibility.Collapsed;
-            Application.Current.DispatcherUnhandledException += Current_DispatcherUnhandledException;
+            Application.Current.DispatcherUnhandledException += onUnhandledException;
+            reset();
         }
 
-        void Current_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+        void onUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
             applicationCrash(e.Exception);
             Application.Current.Shutdown();
@@ -56,28 +57,78 @@ namespace DbxEntityTracker
             AppSettings.ENTITY_SUFFIX = this.suffix.Text;
         }
 
-        private void Button_Click_1(object sender, RoutedEventArgs e)
+        private void onLoad(object sender, RoutedEventArgs e) {
+            var dlg = new OpenFileDialog();
+            dlg.Filter = "DbxEntityTracker Save (*.det)|*.det";
+            dlg.Multiselect = false;
+            dlg.FileOk += (dlgSender, args) => {
+                _lib.load((dlgSender as OpenFileDialog).FileName);
+                showEntities();
+            };
+            dlg.InitialDirectory = Environment.CurrentDirectory + "\\output\\";
+            dlg.FileName = "_lastSave.det";
+            dlg.Title = "Selected a previous search";
+            dlg.ShowDialog();
+        }
+
+        private void onPopulateClick(object sender, RoutedEventArgs e)
         {
             updateAppSettings();
-            bool success = false;
-            try
-            {
-                _lib.init();
-                success = true;
-            }
-            catch (Exception ex)
-            {
-                applicationCrash(ex);
-            }
+            _loadingText.Content = "Populating internal database based on your settings";
+            loadingVisible(true);
+            doPopulate();
+        }
 
-            if (success)
-            {
-                AppSettings.save();
-                _content.Visibility = System.Windows.Visibility.Visible;
-                _entities.ItemsSource = _lib.AllEntities.Keys;
-                _parseOptions.Visibility = System.Windows.Visibility.Collapsed;
-                _lib.save();
-                showEntities();
+        private void doPopulate() {
+            var uithread = Application.Current.Dispatcher;
+            var cmd = new InitializeDatabaseCommand(_lib);
+            cmd.AllFilesFound = () => {
+                uithread.Invoke(() => {
+                    _loadingText.Content = String.Format("{0}\n\nTotal DDF-files: {1}\nTotal DBX-files: {2}", _loadingText.Content, _lib.ddfFiles.Length, _lib.dbxFiles.Length);
+                });
+            };
+            cmd.AllFilesPopulated = () => {
+                uithread.Invoke(() => {
+                    loadingVisible(false);
+                    AppSettings.save();
+                    _content.Visibility = System.Windows.Visibility.Visible;
+                    _entities.ItemsSource = _lib.AllEntities.Keys;
+                    _parseOptions.Visibility = System.Windows.Visibility.Collapsed;
+                    _lib.save();
+                    showEntities();
+                });
+            };
+            cmd.Error = (string error) => {
+                uithread.Invoke(() => {
+                    MessageBox.Show(error);
+                    loadingVisible(false);
+                });
+            };
+
+            cmd.execute();
+        }
+
+        private void loadingVisible(bool flag) {
+            if (flag) {
+                var startTime = DateTime.Now;
+                var s = _loadingText.Content.ToString();
+                _loading.Visibility = System.Windows.Visibility.Visible;
+                var uithread = Application.Current.Dispatcher;
+                if (_timer == null) {
+                    _timer = new System.Timers.Timer(1000);
+                    _timer.Elapsed += (Object source, System.Timers.ElapsedEventArgs e) => {
+                        uithread.Invoke(() => {
+                            _time.Content = string.Format("Loading: {0}s", (DateTime.Now - startTime).TotalSeconds.ToString("0"));
+                        });
+                    };
+                }
+                _timer.Start();
+            } else {
+                if (_timer != null) {
+                    _timer.Stop();
+                    _timer = null; //need to create a new timer since anonymous function has another variable of "start time" compared to what we want
+                }
+                _loading.Visibility = System.Windows.Visibility.Collapsed;
             }
         }
 
@@ -144,35 +195,31 @@ namespace DbxEntityTracker
         private void _textFilter_TextChanged(object sender, TextChangedEventArgs e)
         {
             var all = _lib.AllEntities.Keys.ToList();
-            if (all == null || all.Count == 0)
-            {
+            if (all == null || all.Count == 0) {
                 return;
             }
             var filter = _textFilter.Text;
-            if (filter != "")
-            {   
+            if (filter != "") {   
                 _entities.ItemsSource = all.FindAll(a => a.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0);
-            }
-            else
-            {
+            } else {
                 _entities.ItemsSource = all;
             }
             _entities.Items.Refresh();
         }
 
-        private void onLoad(object sender, RoutedEventArgs e)
-        {
-            var dlg = new OpenFileDialog();
-            dlg.Filter = "DbxEntityTracker Save (*.det)|*.det";
-            dlg.Multiselect = false;
-            dlg.FileOk += (dlgSender, args) => {
-                _lib.load((dlgSender as OpenFileDialog).FileName);
-                showEntities();
-            };
-            dlg.InitialDirectory = Environment.CurrentDirectory + "\\output\\";
-            dlg.FileName = "_lastSave.det";
-            dlg.Title = "Selected a previous search";
-            dlg.ShowDialog();
+        private void onNewSearchClick(object sender, RoutedEventArgs e) {
+            _lib.CancleTasks();
+            reset();
+        }
+
+        private void reset() {
+            _lib = new EntityDbxLib();
+            _time.Content = "Loading";
+
+            readFromAppSettings();
+            _content.Visibility = System.Windows.Visibility.Collapsed;
+            loadingVisible(false);
+            _parseOptions.Visibility = System.Windows.Visibility.Visible;
         }
     }
 }
