@@ -15,6 +15,8 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Collections.Concurrent;
 using Microsoft.Win32;
+using System.Threading;
+using System.Diagnostics;
 
 namespace DbxEntityTracker
 {
@@ -25,6 +27,7 @@ namespace DbxEntityTracker
     public partial class MainWindow : Window
     {
         private EntityDbxLib _lib;
+        private string _frostedLink;
         public MainWindow()
         {
             InitializeComponent();
@@ -47,6 +50,7 @@ namespace DbxEntityTracker
             this.dbxRoot.Text = AppSettings.DBX_ROOT;
             this.ddfRoot.Text = AppSettings.DDF_WSROOT;
             this.suffix.Text = AppSettings.ENTITY_SUFFIX;
+            this._database.Text = AppSettings.DATABASE;
         }
 
         private void updateAppSettings()
@@ -160,6 +164,11 @@ namespace DbxEntityTracker
             _entities.Items.Refresh();
         }
 
+        private void _database_TextChanged_1(object sender, TextChangedEventArgs e)
+        {
+            AppSettings.DATABASE = _database.Text;
+        }
+
         private void onLoad(object sender, RoutedEventArgs e)
         {
             var dlg = new OpenFileDialog();
@@ -173,6 +182,57 @@ namespace DbxEntityTracker
             dlg.FileName = "_lastSave.det";
             dlg.Title = "Selected a previous search";
             dlg.ShowDialog();
+        }
+
+        private void onGenerateFrostEdLink(object sender, RoutedEventArgs e)
+        {
+            var key = _entities.SelectedItem.ToString();
+            var idx = _references.SelectedIndex;
+            var dbx = _lib.GetDbxInfo(key, idx);
+
+            var frostedLink = new StringBuilder();
+            var allLines = File.ReadAllLines(dbx.FilePath);
+            frostedLink.AppendFormat("frosted://{0};@{1}/{2}", AppSettings.DATABASE, getOwningGuid(allLines, dbx.FilePath), getInstanceGuid(allLines, dbx.LineNumber - 1));
+            _frostedLink = frostedLink.ToString();
+            var sb = new StringBuilder(_infoPanel.Text);
+            sb.AppendLine();
+            sb.AppendLine("----------------------");
+            sb.AppendLine("FrostEd-Link");
+            sb.AppendLine(frostedLink.ToString());
+            _infoPanel.Text = sb.ToString();
+        }
+
+        private string getOwningGuid(string[] lines, string file)
+        {
+            int counter = 0;
+            foreach (var line in lines)
+            {
+                counter++;
+                if (line.Contains("primaryInstance"))
+                {
+                    var guid = _lib.findSubstring(line, "guid=\"", 36);
+                    return guid;
+                }
+                if (counter > 20)
+                    throw new Exception("Unable to find primaryInstance within 20 lines in file: " + file);
+            }
+            return "";
+        }
+
+        private string getInstanceGuid(string[] lines, int lineNumber)
+        {
+            var line = lines[lineNumber];
+
+            var guid = _lib.findSubstring(line, "guid=\"", 36);
+            return guid;
+        }
+
+        private void onOpenInFrosted(object sender, RoutedEventArgs e)
+        {
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                Process process = Process.Start(@_frostedLink);
+            });
         }
     }
 }

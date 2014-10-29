@@ -91,7 +91,7 @@ namespace DbxEntityTracker
                             if (module.Length == 0)
                             {
                                 //throw new Exception(String.Format("Unable to find module inside DDF-file ({0})", file));
-								module = "foo";
+								module = "--N/A--";
                             }
                             var name = line.Substring("entity ".Length);
                             name = name.Split(':')[0].Trim();
@@ -155,13 +155,13 @@ namespace DbxEntityTracker
             return allCollections;
         }
 
-        private string findSubstring(string source, string identifier, int count)
+        public string findSubstring(string source, string identifier, int count)
         {
             var idx = source.IndexOf(identifier);
             return source.Substring(idx + identifier.Length, count);
         }
 
-        private string findSubstring(string source, string startIdentifier, string endIdentifier)
+        public string findSubstring(string source, string startIdentifier, string endIdentifier)
         {
             var startIdx = source.IndexOf(startIdentifier) + startIdentifier.Length;
             var endIdx = source.IndexOf(endIdentifier, startIdx + 1);

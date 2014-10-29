@@ -27,11 +27,61 @@
             </DockPanel>
             <DockPanel Name="_content" Visibility="Visible">
                 <DockPanel DockPanel.Dock="Top">
+                    <Label>Database:</Label>
+                    <TextBox Name="_database" TextChanged="_database_TextChanged_1" />
+                </DockPanel>
+                <DockPanel DockPanel.Dock="Top">
                     <Label>Filter:</Label>
                     <TextBox Name="_textFilter" TextChanged="_textFilter_TextChanged" />
                 </DockPanel>
-                <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_entities" SelectionChanged="_entities_SelectionChanged" />
-                <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_references" SelectionChanged="_references_SelectionChanged" />
+                <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_entities" SelectionChanged="_entities_SelectionChanged">
+                    <ListBox.Resources>
+                        <Style TargetType="{x:Type ListBoxItem}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border Name="Border" SnapsToDevicePixels="true">
+                                            <ContentPresenter />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsSelected" Value="true">
+                                                <Setter TargetName="Border" Property="Background"
+                                            Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.Resources>
+                </ListBox>
+                <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_references" SelectionChanged="_references_SelectionChanged">
+                    <ListBox.Resources>
+                        <ContextMenu x:Key="MyContextMenu">
+                            <MenuItem Header="Generate FrostEd-link" Click="onGenerateFrostEdLink" />
+                            <MenuItem Header="Open in FrostEd" Click="onOpenInFrosted" />
+                        </ContextMenu>
+                        <Style TargetType="{x:Type ListBoxItem}">
+                            <Setter Property="ContextMenu" Value="{StaticResource MyContextMenu}"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border Name="Border" SnapsToDevicePixels="true">
+                                            <ContentPresenter />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsSelected" Value="true">
+                                                <Setter TargetName="Border" Property="Background"
+                                            Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+
+                    </ListBox.Resources>
+                </ListBox>
                 <TextBox DockPanel.Dock="Right" Name="_infoPanel" MinWidth="250" IsReadOnly="True" HorizontalContentAlignment="Center" Text="Info Panel!" Margin="30" />
             </DockPanel>
         </DockPanel>

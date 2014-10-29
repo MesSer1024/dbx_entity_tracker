@@ -12,6 +12,7 @@ namespace DbxEntityTracker
         public static string DBX_ROOT = @"E:\rep\ws\FutureData\Source\";
         public static string DDF_WSROOT = @"E:\rep\ws\tnt\code\ws";
         public static string ENTITY_SUFFIX = "Data";
+        public static string DATABASE = "Whiteshark";
 
         internal static void load()
         {
@@ -42,6 +43,10 @@ namespace DbxEntityTracker
                         {
                             ENTITY_SUFFIX = value;
                         }
+                        else if (line.StartsWith("database|"))
+                        {
+                            DATABASE = value;
+                        }
                     }
                 }
             }
@@ -57,6 +62,7 @@ namespace DbxEntityTracker
                 sw.WriteLine("dbx|" + DBX_ROOT);
                 sw.WriteLine("ddf|" + DDF_WSROOT);
                 sw.WriteLine("suffix|" + ENTITY_SUFFIX);
+                sw.WriteLine("database|" + DATABASE);
                 sw.Flush();
                 sw.Close();
             }
