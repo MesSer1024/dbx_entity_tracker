@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
 using Newtonsoft.Json;
@@ -32,19 +33,40 @@ namespace DbxEntityTracker
             get { return _allEntities; }
         }
         private IDictionary<string, List<DbxMatch>> _entityUsage;
+        public FileInfo[] dbxFiles;
+        public FileInfo[] ddfFiles;
+        private CancellationTokenSource _cts;
+        private ParallelOptions _po;
 
         public IDictionary<string, List<DbxMatch>> EntityUsage
         {
             get { return _entityUsage; }
         }
 
+        public bool IsCancelled { get { return _cts.IsCancellationRequested; } }
+
+        public void CancleTasks() {
+            _cts.Cancel();
+        }
+
         public void init()
         {
-            var ddfFiles = GetFilesOfType(AppSettings.DDF_WSROOT, "ddf");
+            ddfFiles = new FileInfo[0];
+            dbxFiles = new FileInfo[0];
+            _po = new ParallelOptions();
+            _cts = new CancellationTokenSource();
+            _po.CancellationToken = _cts.Token;
+            //find files on harddrive
+            ddfFiles = GetFilesOfType(AppSettings.DDF_WSROOT, "ddf");
+            if (_cts.IsCancellationRequested)
+                return;
+            dbxFiles = GetFilesOfType(AppSettings.DBX_ROOT, "dbx");
+        }
+
+        public void populate() {
             _allEntities = populateDDF(ddfFiles);
             Console.WriteLine("-----------------\n Total Entities: {0}\n-----------------", _allEntities.Keys.Count);
 
-            var dbxFiles = GetFilesOfType(AppSettings.DBX_ROOT, "dbx");
             var dbxMatches = populateDBX(dbxFiles);
             Console.WriteLine("Parsing all dbx-files, found {0} files that might contain entities", dbxMatches.Count);
 
@@ -67,7 +89,7 @@ namespace DbxEntityTracker
         {
             var entityTable = new ConcurrentDictionary<string, string>();
 
-            Parallel.ForEach(ddfFiles, (file) =>
+            Parallel.ForEach(ddfFiles,_po, (file, state) =>
             {
                 using (var sr = new StreamReader(file.FullName))
                 {
@@ -110,6 +132,8 @@ namespace DbxEntityTracker
                         }
                     }
                 }
+                if (_po.CancellationToken.IsCancellationRequested)
+                    state.Break();
             });
 
             //ConcurrentDictionary seems to be slow when it comes to lookup, negelecting to convert to regular dictionary causes crossreference to take 10s instead of <100ms
@@ -120,7 +144,7 @@ namespace DbxEntityTracker
         {
             var allCollections = new List<DbxParsingData>();
             var mutex = new object();
-            Parallel.ForEach(dbxFiles, (file) =>
+            Parallel.ForEach(dbxFiles, _po, (file, state) =>
             {
                 var collection = new List<DbxParsingData>();
                 using (var sr = new StreamReader(file.FullName))
@@ -151,6 +175,9 @@ namespace DbxEntityTracker
                         allCollections.AddRange(collection);
                     }
                 }
+
+                if (_po.CancellationToken.IsCancellationRequested)
+                    state.Break();
             });
             return allCollections;
         }
