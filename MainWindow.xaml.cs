@@ -126,10 +126,10 @@ namespace DbxEntityTracker
                 _loading.Visibility = System.Windows.Visibility.Visible;
                 var uithread = Application.Current.Dispatcher;
                 if (_timer == null) {
-                    _timer = new System.Timers.Timer(1000);
+                    _timer = new System.Timers.Timer(495);
                     _timer.Elapsed += (Object source, System.Timers.ElapsedEventArgs e) => {
                         uithread.Invoke(() => {
-                            var stringPrefix = _lib.IsCancelled ? "Cancelling:" : "Loading:";
+                            var stringPrefix = _lib.IsCancelled ? "Canceling:" : "Loading:";
                             _time.Content = string.Format("{0} {1}s", stringPrefix, (DateTime.Now - startTime).TotalSeconds.ToString("0"));
                         });
                     };

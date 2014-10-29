@@ -3,33 +3,35 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Dbx_Entity_Tracker" Height="800" Width="1200" WindowState="Maximized">
     <Grid>
-        <DockPanel >
+        <Grid.Resources>
+            <SolidColorBrush x:Key="selectedBG" Color="#CECECE" />
+        </Grid.Resources>
+        <DockPanel>
             <Menu DockPanel.Dock="Top" Name="_menu">
                 <MenuItem Header="File">
                     <MenuItem Header="New Search" Click="onNewSearchClick" />
                 </MenuItem>
             </Menu>
-            <DockPanel Name="_loading" MinWidth="600" MinHeight="300" Visibility="Visible">
+            <DockPanel Name="_loading" MinWidth="600" MinHeight="300" Visibility="Collapsed">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Label Name="_loadingText" Content="Foobar!" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Label Name="_loadingText" Content="" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     <Label Name="_time" Content="Loading" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </StackPanel>
             </DockPanel>
             <DockPanel Name="_parseOptions" MinWidth="500">
-                <DockPanel DockPanel.Dock="Top">
+                <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}">
                     <Label>DDF Root:</Label>
-                    <TextBox Name="ddfRoot" MinWidth="250" VerticalContentAlignment="Center"/>
+                    <TextBox Name="ddfRoot" MinWidth="250" VerticalContentAlignment="Center" Background="{StaticResource selectedBG}"/>
                 </DockPanel>
-                <DockPanel DockPanel.Dock="Top">
+                <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}">
                     <Label>DBX Root:</Label>
-                    <TextBox Name="dbxRoot" MinWidth="250" VerticalContentAlignment="Center"/>
+                    <TextBox Name="dbxRoot" MinWidth="250" VerticalContentAlignment="Center" Background="{StaticResource selectedBG}"/>
                 </DockPanel>
-                <DockPanel DockPanel.Dock="Top"/>
-                <DockPanel DockPanel.Dock="Top">
+                <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}">
                     <Label>Entity Suffix:</Label>
-                    <TextBox Name="suffix" MinWidth="250" VerticalContentAlignment="Center" />
+                    <TextBox Name="suffix" MinWidth="250" VerticalContentAlignment="Center" Background="{StaticResource selectedBG}" />
                 </DockPanel>
-                <DockPanel DockPanel.Dock="Top">
+                <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}">
                     <Button Name="parseButton"  Padding="6" Margin="10" DockPanel.Dock="Left" Click="onPopulateClick">Parse Files</Button>
                     <Button Name="loadButton"  Padding="6" Margin="10" DockPanel.Dock="Left" Click="onLoad">Load Data</Button>
                     <Label />
@@ -37,13 +39,13 @@
                 <Label />
             </DockPanel>
             <DockPanel Name="_content" Visibility="Visible">
-                <DockPanel DockPanel.Dock="Top">
-                    <Label>Database:</Label>
-                    <TextBox Name="_database" TextChanged="_database_TextChanged_1" />
+                <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}">
+                    <Label>Avalanche(?) Database ID:</Label>
+                    <TextBox Name="_database" TextChanged="_database_TextChanged_1" Background="{StaticResource selectedBG}" />
                 </DockPanel>
-                <DockPanel DockPanel.Dock="Top">
+                <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}">
                     <Label>Filter:</Label>
-                    <TextBox Name="_textFilter" TextChanged="_textFilter_TextChanged" />
+                    <TextBox Name="_textFilter" TextChanged="_textFilter_TextChanged" Background="{StaticResource selectedBG}" />
                 </DockPanel>
                 <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_entities" SelectionChanged="_entities_SelectionChanged">
                     <ListBox.Resources>
@@ -92,7 +94,10 @@
 
                     </ListBox.Resources>
                 </ListBox>
-                <TextBox DockPanel.Dock="Right" Name="_infoPanel" MinWidth="250" IsReadOnly="True" HorizontalContentAlignment="Center" Text="Info Panel!" Margin="30" />
+                <DockPanel DockPanel.Dock="Right" Margin="30,0,0,0">
+                    <Label Content="Info Panel:" DockPanel.Dock="Top" />
+                    <TextBox Name="_infoPanel" MinWidth="250" IsReadOnly="True" HorizontalContentAlignment="Left" />
+                </DockPanel>
             </DockPanel>
         </DockPanel>
     </Grid>
