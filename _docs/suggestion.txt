@@ -15,3 +15,7 @@ The first line is the widget, the other lines are the elements it includes. The 
 
 Moritz
 
+--------------------------------
+Andreas:
+
+saknar att kunna sortera efter namn eller att det sker automatiskt
