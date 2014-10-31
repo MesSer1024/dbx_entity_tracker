@@ -9,16 +9,23 @@ namespace DbxEntityTracker
 {
     static class AppSettings
     {
-        public static string DBX_ROOT = @"E:\rep\ws\FutureData\Source\";
-        public static string DDF_WSROOT = @"E:\rep\ws\tnt\code\ws";
+        public static string DBX_ROOT = @"d:\dice\ws\Data\Source\";
+        public static string DDF_WSROOT = @"d:\dice\ws\tnt\code\";
         public static string ENTITY_SUFFIX = "Data";
         public static string DATABASE = "Whiteshark";
+        public static string APP_NAME = "dbx_entity_tracker";
+        
+        public static string APP_ROOT_FOLDER = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), APP_NAME);
+        public static string APP_SAVE_FOLDER = Path.Combine(APP_ROOT_FOLDER, "./saves/");
+        private static string CONFIG_FILE = Path.Combine(APP_ROOT_FOLDER, "./settings/config.ini");
 
-        internal static void load()
+        internal static void loadSettings()
         {
-            var file = new FileInfo("./settings/config.ini");
-            if (file.Exists)
+            var file = new FileInfo(CONFIG_FILE);
+            if (!file.Exists)
             {
+                saveSettings();
+            } else {
                 using (var sr = new StreamReader(file.FullName))
                 {
                     while (!sr.EndOfStream)
@@ -52,9 +59,9 @@ namespace DbxEntityTracker
             }
         }
 
-        internal static void save()
+        internal static void saveSettings()
         {
-            var file = new FileInfo("./settings/config.ini");
+            var file = new FileInfo(CONFIG_FILE);
             if(!file.Directory.Exists)
                 file.Directory.Create();
             using (var sw = new StreamWriter(file.FullName, false))

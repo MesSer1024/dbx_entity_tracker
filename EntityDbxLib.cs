@@ -43,19 +43,26 @@ namespace DbxEntityTracker
             get { return _entityUsage; }
         }
 
+        public bool IsRunning { get; private set; }
         public bool IsCancelled { get { return _cts.IsCancellationRequested; } }
 
         public void CancleTasks() {
             _cts.Cancel();
+            IsRunning = false;
+        }
+
+        public EntityDbxLib()
+        {
+            _po = new ParallelOptions();
+            _cts = new CancellationTokenSource();
+            _po.CancellationToken = _cts.Token;
         }
 
         public void init()
         {
+            IsRunning = true;
             ddfFiles = new FileInfo[0];
             dbxFiles = new FileInfo[0];
-            _po = new ParallelOptions();
-            _cts = new CancellationTokenSource();
-            _po.CancellationToken = _cts.Token;
             //find files on harddrive
             ddfFiles = GetFilesOfType(AppSettings.DDF_WSROOT, "ddf");
             if (_cts.IsCancellationRequested)
@@ -74,6 +81,22 @@ namespace DbxEntityTracker
 
             var unusedEntities = findUnusedEntities(_allEntities, _entityUsage);
             writeUnusedEntities(unusedEntities);
+
+            sortAlphabetically();
+            IsRunning = false;
+        }
+
+        private void sortAlphabetically()
+        {
+            var sorted = from entry in _allEntities orderby entry.Key ascending select entry;
+            _allEntities = sorted.ToDictionary(pair => pair.Key, pair => pair.Value);
+
+            foreach (var key in _entityUsage.Keys)
+            {
+                _entityUsage[key].Sort((a, b) => {
+                    return a.FilePath.CompareTo(b.FilePath);
+                });
+            }
         }
 
         public FileInfo[] GetFilesOfType(string rootFolder, string fileType)
@@ -105,7 +128,6 @@ namespace DbxEntityTracker
                             module = line.Split(' ')[1];
                             if (module.Length > 0)
                                 module = module.Remove(module.Length - 1);
-                            Console.WriteLine("Module located inside file: {0}, module=''{1}''", file, module);
                             moduleLocated = false; //set to true soon... just make sure that no file contains multiple modules
                         }
                         else if (!insideEntity && line.StartsWith("entity "))
@@ -243,7 +265,6 @@ namespace DbxEntityTracker
             {
                 sb.AppendLine(u);
             }
-            Console.WriteLine("Unused Entities: {0}", sb.ToString());
             writeFile("./output/unused_entities.txt", sb.ToString());
         }
 
@@ -264,13 +285,13 @@ namespace DbxEntityTracker
             return _entityUsage.ContainsKey(entityIdentifier) ? _entityUsage[entityIdentifier] : null;
         }
 
-        public void save()
+        public void save(string filename="_LastSave.det")
         {
             var save = new SavedData();
             save.AllEntities = AllEntities;
             save.EntityUsage = EntityUsage;
             var output = JsonConvert.SerializeObject(save);
-            writeFile("./output/_LastSave.det", output);
+            writeFile(Path.Combine(AppSettings.APP_SAVE_FOLDER, filename), output);
         }
 
         private void writeFile(string path, string data)
@@ -297,6 +318,7 @@ namespace DbxEntityTracker
                     var load = JsonConvert.DeserializeObject<SavedData>(s);
                     _allEntities = load.AllEntities;
                     _entityUsage = load.EntityUsage;
+                    sortAlphabetically();
                 }
             }
             else

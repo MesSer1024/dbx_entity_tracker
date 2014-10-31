@@ -30,11 +30,13 @@ namespace DbxEntityTracker
         private EntityDbxLib _lib;
         private string _frostedLink;
         private System.Timers.Timer _timer;
+
         public MainWindow()
         {
             InitializeComponent();
-            AppSettings.load();
+            AppSettings.loadSettings();
             Application.Current.DispatcherUnhandledException += onUnhandledException;
+            readFromAppSettings();
             reset();
         }
 
@@ -57,6 +59,7 @@ namespace DbxEntityTracker
             AppSettings.DBX_ROOT = this.dbxRoot.Text;
             AppSettings.DDF_WSROOT = this.ddfRoot.Text;
             AppSettings.ENTITY_SUFFIX = this.suffix.Text;
+            AppSettings.DATABASE = this._database.Text;
         }
 
         private void onLoad(object sender, RoutedEventArgs e) {
@@ -67,9 +70,12 @@ namespace DbxEntityTracker
                 _lib.load((dlgSender as OpenFileDialog).FileName);
                 showEntities();
             };
-            dlg.InitialDirectory = Environment.CurrentDirectory + "\\output\\";
+            dlg.InitialDirectory = System.IO.Path.GetFullPath(AppSettings.APP_SAVE_FOLDER);
+            var dir = new DirectoryInfo(dlg.InitialDirectory);
+            if (!dir.Exists)
+                dir.Create();
             dlg.FileName = "_lastSave.det";
-            dlg.Title = "Selected a previous search";
+            dlg.Title = "Open a previous search";
             dlg.ShowDialog();
         }
 
@@ -92,7 +98,7 @@ namespace DbxEntityTracker
             cmd.AllFilesPopulated = () => {
                 uithread.Invoke(() => {
                     loadingVisible(false);
-                    AppSettings.save();
+                    AppSettings.saveSettings();
                     _content.Visibility = System.Windows.Visibility.Visible;
                     _entities.ItemsSource = _lib.AllEntities.Keys;
                     _parseOptions.Visibility = System.Windows.Visibility.Collapsed;
@@ -226,8 +232,14 @@ namespace DbxEntityTracker
 
         private void onNewSearchClick(object sender, RoutedEventArgs e)
         {
-            _lib.CancleTasks();
-            //reset();
+            if (_lib.IsRunning)
+            {
+                _lib.CancleTasks();
+            }
+            else
+            {
+                reset();
+            }
         }
 
         private void doGenerateFrostedLink()
@@ -286,7 +298,6 @@ namespace DbxEntityTracker
             _lib = new EntityDbxLib();
             _time.Content = "Loading";
 
-            readFromAppSettings();
             _content.Visibility = System.Windows.Visibility.Collapsed;
             loadingVisible(false);
             _parseOptions.Visibility = System.Windows.Visibility.Visible;
