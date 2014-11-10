@@ -13,9 +13,11 @@ namespace DbxEntityTracker.commands {
         public Action AllFilesPopulated;
         public Action<string> Error;
         private EntityDbxLib _lib;
+        private bool _useDdf;
 
-        public InitializeDatabaseCommand(EntityDbxLib lib) {
+        public InitializeDatabaseCommand(EntityDbxLib lib, bool useDdfFiles) {
             _lib = lib;
+            _useDdf = useDdfFiles;
         }
 
         public bool DdfFolderExists() {
@@ -29,13 +31,14 @@ namespace DbxEntityTracker.commands {
         }
 
         public void execute() {
-            if (DdfFolderExists() && DbxFolderExists()) {
-
+            var ddfValid = !_useDdf || (_useDdf && DdfFolderExists());
+            if (ddfValid && DbxFolderExists())
+            {
                 var bw = new BackgroundWorker();
 
                 bw.DoWork += (object foo, DoWorkEventArgs bar) => {
                     try {
-                        _lib.init();
+                        _lib.init(_useDdf);
                         if (_lib.IsCancelled == false && AllFilesFound != null)
                             AllFilesFound();
                         _lib.populate();

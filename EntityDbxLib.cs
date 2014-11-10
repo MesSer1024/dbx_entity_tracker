@@ -37,6 +37,7 @@ namespace DbxEntityTracker
         public FileInfo[] ddfFiles;
         private CancellationTokenSource _cts;
         private ParallelOptions _po;
+        private bool _useDDF;
 
         public IDictionary<string, List<DbxMatch>> EntityUsage
         {
@@ -58,31 +59,54 @@ namespace DbxEntityTracker
             _po.CancellationToken = _cts.Token;
         }
 
-        public void init()
+        public void init(bool useDdf)
         {
+            _useDDF = useDdf;
+            _allEntities = new Dictionary<string, string>();
             IsRunning = true;
             ddfFiles = new FileInfo[0];
             dbxFiles = new FileInfo[0];
             //find files on harddrive
-            ddfFiles = GetFilesOfType(AppSettings.DDF_WSROOT, "ddf");
+            if(_useDDF)
+                ddfFiles = GetFilesOfType(AppSettings.DDF_WSROOT, "ddf");
             if (_cts.IsCancellationRequested)
                 return;
             dbxFiles = GetFilesOfType(AppSettings.DBX_ROOT, "dbx");
         }
 
         public void populate() {
-            _allEntities = populateDDF(ddfFiles);
-            Console.WriteLine("-----------------\n Total Entities: {0}\n-----------------", _allEntities.Keys.Count);
+            var ts = DateTime.Now;
+            if (_useDDF)
+            {
+                _allEntities = populateDDF(ddfFiles);
+                Console.WriteLine("-----------------\n Total Entities: {0}\n-----------------", _allEntities.Keys.Count);
+            }
 
             var dbxMatches = populateDBX(dbxFiles);
             Console.WriteLine("Parsing all dbx-files, found {0} files that might contain entities", dbxMatches.Count);
+            
+            if(_useDDF)
+            {
+                //coder setup (ddf files available)
+                _entityUsage = crossReferenceEntitiesWithDbxMatches(_allEntities, dbxMatches);
+                var unusedEntities = findUnusedEntities(_allEntities, _entityUsage);
+                writeUnusedEntities(unusedEntities);
+            }
+            else
+            {
+                //content creator setup (no ddf files available)
+                _entityUsage = showcaseDbxFiles(dbxMatches);
+                foreach (var pair in _entityUsage)
+                {
+                    if (!_allEntities.ContainsKey(pair.Key))
+                        _allEntities.Add(pair.Key, "--> Unknown ddf file <--");
+                }
+            }
 
-            _entityUsage = crossReferenceEntitiesWithDbxMatches(_allEntities, dbxMatches);
-
-            var unusedEntities = findUnusedEntities(_allEntities, _entityUsage);
-            writeUnusedEntities(unusedEntities);
-
+            Console.WriteLine("Parsing & searching took: {0}s", (DateTime.Now - ts).TotalSeconds);
+            ts = DateTime.Now;
             sortAlphabetically();
+            Console.WriteLine("Sorting took {0}s", (DateTime.Now - ts).TotalSeconds);
             IsRunning = false;
         }
 
@@ -91,12 +115,12 @@ namespace DbxEntityTracker
             var sorted = from entry in _allEntities orderby entry.Key ascending select entry;
             _allEntities = sorted.ToDictionary(pair => pair.Key, pair => pair.Value);
 
-            foreach (var key in _entityUsage.Keys)
-            {
-                _entityUsage[key].Sort((a, b) => {
+            var keys = _entityUsage.Keys;
+            Parallel.ForEach(keys, _po, (key, state) => {
+                _entityUsage[key].Sort((a,b) => {
                     return a.FilePath.CompareTo(b.FilePath);
                 });
-            }
+            });
         }
 
         public FileInfo[] GetFilesOfType(string rootFolder, string fileType)
@@ -243,6 +267,29 @@ namespace DbxEntityTracker
             }
 
             return entityUsage;
+        } 
+        
+        /// <summary>
+        /// Dictionary<EntityName, List<DbxFile>>
+        /// </summary>
+        private IDictionary<string, List<DbxMatch>> showcaseDbxFiles(List<DbxParsingData> dbxMatches)
+        {
+            var entityUsage = new Dictionary<string, List<DbxMatch>>(); //Dictionary<EntityName, List<DbxFile>>
+            foreach (var dbx in dbxMatches)
+            {
+                int idx = 0;
+                foreach (var dbxType in dbx.EntityTypes)
+                {
+                    var asset = new DbxMatch() { FilePath = dbx.Filepath, LineNumber = dbx.LineNumbers[idx], EntityType = dbx.EntityTypes[idx] };
+                    if (entityUsage.ContainsKey(dbxType))
+                        entityUsage[dbxType].Add(asset);
+                    else
+                        entityUsage.Add(dbxType, new List<DbxMatch>() { asset });
+                    idx++;
+                }
+            }
+
+            return entityUsage;
         }
 
         private static List<string> findUnusedEntities(IDictionary<string, string> all, IDictionary<string, List<DbxMatch>> used)
@@ -318,7 +365,6 @@ namespace DbxEntityTracker
                     var load = JsonConvert.DeserializeObject<SavedData>(s);
                     _allEntities = load.AllEntities;
                     _entityUsage = load.EntityUsage;
-                    sortAlphabetically();
                 }
             }
             else

@@ -12,8 +12,9 @@ namespace DbxEntityTracker
         public static string DBX_ROOT = @"d:\dice\ws\Data\Source\";
         public static string DDF_WSROOT = @"d:\dice\ws\tnt\code\";
         public static string ENTITY_SUFFIX = "Data";
-        public static string DATABASE = "Whiteshark";
+        //public static string DATABASE = "Whiteshark";
         public static string APP_NAME = "dbx_entity_tracker";
+        public static bool DDF_SEARCH_ENABLED = true;
         
         public static string APP_ROOT_FOLDER = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), APP_NAME);
         public static string APP_SAVE_FOLDER = Path.Combine(APP_ROOT_FOLDER, "./saves/");
@@ -50,10 +51,16 @@ namespace DbxEntityTracker
                         {
                             ENTITY_SUFFIX = value;
                         }
-                        else if (line.StartsWith("database|"))
+                        else if (line.StartsWith("ddf_enabled|"))
                         {
-                            DATABASE = value;
+                            bool foo = true;
+                            var ok = Boolean.TryParse(value, out foo);
+                            DDF_SEARCH_ENABLED = foo;
                         }
+                        //else if (line.StartsWith("database|"))
+                        //{
+                        //    DATABASE = value;
+                        //}
                     }
                 }
             }
@@ -69,7 +76,8 @@ namespace DbxEntityTracker
                 sw.WriteLine("dbx|" + DBX_ROOT);
                 sw.WriteLine("ddf|" + DDF_WSROOT);
                 sw.WriteLine("suffix|" + ENTITY_SUFFIX);
-                sw.WriteLine("database|" + DATABASE);
+                sw.WriteLine("ddf_enabled|" + DDF_SEARCH_ENABLED.ToString());
+                //sw.WriteLine("database|" + DATABASE);
                 sw.Flush();
                 sw.Close();
             }

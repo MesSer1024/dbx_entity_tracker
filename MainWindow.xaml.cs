@@ -18,6 +18,7 @@ using Microsoft.Win32;
 using System.Threading;using System.Diagnostics;
 using System.ComponentModel;
 using DbxEntityTracker.commands;
+using System.Windows.Threading;
 
 namespace DbxEntityTracker
 {
@@ -30,6 +31,8 @@ namespace DbxEntityTracker
         private EntityDbxLib _lib;
         private string _frostedLink;
         private System.Timers.Timer _timer;
+        private bool _searchDdfFiles;
+        private string _lastItem;
 
         public MainWindow()
         {
@@ -37,8 +40,11 @@ namespace DbxEntityTracker
             AppSettings.loadSettings();
             Application.Current.DispatcherUnhandledException += onUnhandledException;
             readFromAppSettings();
-            reset();
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => { 
+                reset(); 
+            }));
         }
+
 
         void onUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
@@ -51,7 +57,8 @@ namespace DbxEntityTracker
             this.dbxRoot.Text = AppSettings.DBX_ROOT;
             this.ddfRoot.Text = AppSettings.DDF_WSROOT;
             this.suffix.Text = AppSettings.ENTITY_SUFFIX;
-            this._database.Text = AppSettings.DATABASE;
+            this._ddfCheckbox.IsChecked = AppSettings.DDF_SEARCH_ENABLED;
+            //this._database.Text = AppSettings.DATABASE;
         }
 
         private void updateAppSettings()
@@ -59,7 +66,8 @@ namespace DbxEntityTracker
             AppSettings.DBX_ROOT = this.dbxRoot.Text;
             AppSettings.DDF_WSROOT = this.ddfRoot.Text;
             AppSettings.ENTITY_SUFFIX = this.suffix.Text;
-            AppSettings.DATABASE = this._database.Text;
+            AppSettings.DDF_SEARCH_ENABLED = (bool)this._ddfCheckbox.IsChecked;
+            //AppSettings.DATABASE = this._database.Text;
         }
 
         private void onLoad(object sender, RoutedEventArgs e) {
@@ -89,7 +97,9 @@ namespace DbxEntityTracker
 
         private void doPopulate() {
             var uithread = Application.Current.Dispatcher;
-            var cmd = new InitializeDatabaseCommand(_lib);
+            var cmd = new InitializeDatabaseCommand(_lib, _searchDdfFiles);
+            AppSettings.saveSettings();
+
             cmd.AllFilesFound = () => {
                 uithread.Invoke(() => {
                     _loadingText.Content = String.Format("{0}\n\nTotal DDF-files: {1}\nTotal DBX-files: {2}", _loadingText.Content, _lib.ddfFiles.Length, _lib.dbxFiles.Length);
@@ -98,7 +108,6 @@ namespace DbxEntityTracker
             cmd.AllFilesPopulated = () => {
                 uithread.Invoke(() => {
                     loadingVisible(false);
-                    AppSettings.saveSettings();
                     _content.Visibility = System.Windows.Visibility.Visible;
                     _entities.ItemsSource = _lib.AllEntities.Keys;
                     _parseOptions.Visibility = System.Windows.Visibility.Collapsed;
@@ -181,13 +190,14 @@ namespace DbxEntityTracker
             var key = _entities.SelectedItem.ToString();
             _infoPanel.Text = _lib.FindDdfSource(key) ?? "";
             _references.ItemsSource = _lib.FindDbxReferences(key);
+            _lastItem = _entities.SelectedItem.ToString();
         }
 
         private void _references_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            var key = _entities.SelectedItem.ToString();
+            var key = _entities.SelectedItem == null ? _lastItem : _entities.SelectedItem.ToString();
             var idx = _references.SelectedIndex;
-            if (idx < 0 || key == "")
+            if (idx < 0 || String.IsNullOrEmpty(key))
             {
                 _infoPanel.Text = "";
                 return;
@@ -216,19 +226,34 @@ namespace DbxEntityTracker
             if (all == null || all.Count == 0) {
                 return;
             }
-            var filter = _textFilter.Text;
-            if (filter != "") {   
-                _entities.ItemsSource = all.FindAll(a => a.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0);
-            } else {
+
+            if (String.IsNullOrEmpty(_textFilter.Text))
+            {
                 _entities.ItemsSource = all;
             }
+            else
+            {
+                //generate filters
+                var filters = new List<string>();
+                filters.AddRange(_textFilter.Text.Split(' '));
+
+                //if we have a currently selected item in reference view, add it to list
+                var items = new List<string>();
+                if (_references.SelectedItem != null)
+                    items.Add(_lastItem);
+
+                //check if all words exists in file name
+                items.AddRange(from item in all where filters.All(a => item.IndexOf(a,StringComparison.OrdinalIgnoreCase) >= 0) select item);
+                _entities.ItemsSource = items.ToList();
+            }
+
             _entities.Items.Refresh();
         }
 
-        private void _database_TextChanged_1(object sender, TextChangedEventArgs e)
-        {
-            AppSettings.DATABASE = _database.Text;
-        }
+        //private void _database_TextChanged_1(object sender, TextChangedEventArgs e)
+        //{
+        //    AppSettings.DATABASE = _database.Text;
+        //}
 
         private void onNewSearchClick(object sender, RoutedEventArgs e)
         {
@@ -244,15 +269,26 @@ namespace DbxEntityTracker
 
         private void doGenerateFrostedLink()
         {
-            var key = _entities.SelectedItem.ToString();
+            var key = _entities.SelectedItem == null ? _lastItem : _entities.SelectedItem.ToString();
             var idx = _references.SelectedIndex;
+            var sb = new StringBuilder();
+            if (String.IsNullOrEmpty(key) || idx < 0)
+            {
+                sb = new StringBuilder(_infoPanel.Text);
+                sb.AppendLine("----------------------");
+                sb.AppendLine("FrostEd-Link");
+                sb.AppendLine("-----------------Unable to generate frosted link, invalid selection in UI?");
+                _infoPanel.Text = sb.ToString();
+                return;
+            }
             var dbx = _lib.GetDbxInfo(key, idx);
 
             var frostedLink = new StringBuilder();
             var allLines = File.ReadAllLines(dbx.FilePath);
-            frostedLink.AppendFormat("frosted://{0};@{1}/{2}", AppSettings.DATABASE, getOwningGuid(allLines, dbx.FilePath), getInstanceGuid(allLines, dbx.LineNumber - 1));
+            //frostedLink.AppendFormat("frosted://{0};@{1}/{2}", AppSettings.DATABASE, getOwningGuid(allLines, dbx.FilePath), getInstanceGuid(allLines, dbx.LineNumber - 1));
+            frostedLink.AppendFormat("frosted://{0};@{1}/{2}", "", getOwningGuid(allLines, dbx.FilePath), getInstanceGuid(allLines, dbx.LineNumber - 1));
             _frostedLink = frostedLink.ToString();
-            var sb = new StringBuilder(_infoPanel.Text);
+            sb = new StringBuilder(_infoPanel.Text);
             sb.AppendLine();
             sb.AppendLine("----------------------");
             sb.AppendLine("FrostEd-Link");
@@ -301,6 +337,25 @@ namespace DbxEntityTracker
             _content.Visibility = System.Windows.Visibility.Collapsed;
             loadingVisible(false);
             _parseOptions.Visibility = System.Windows.Visibility.Visible;
+            updateDdfStatus();
+        }
+
+        private void CheckBox_Click_1(object sender, RoutedEventArgs e)
+        {
+            updateDdfStatus();
+        }
+
+        private void updateDdfStatus()
+        {
+            bool status = (bool)_ddfCheckbox.IsChecked;
+            ddfRoot.IsEnabled = status;
+            ddfRoot.IsReadOnly = !status;
+            _searchDdfFiles = status;
+            if (suffix != null)
+            {
+                suffix.IsEnabled = status;
+                suffix.IsReadOnly = !status;
+            }
         }
     }
 }
