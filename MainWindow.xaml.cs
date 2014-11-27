@@ -33,6 +33,7 @@ namespace DbxEntityTracker
         private System.Timers.Timer _timer;
         private bool _searchDdfFiles;
         private string _lastItem;
+        private DateTime _timestamp;
 
         public MainWindow()
         {
@@ -43,12 +44,14 @@ namespace DbxEntityTracker
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => { 
                 reset(); 
             }));
+
         }
 
 
         void onUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
             applicationCrash(e.Exception);
+            Utils.AtomicWriteToLog("crashed");
             Application.Current.Shutdown();
         }
 
@@ -71,6 +74,7 @@ namespace DbxEntityTracker
         }
 
         private void onLoad(object sender, RoutedEventArgs e) {
+            Utils.AtomicWriteToLog("load");
             var dlg = new OpenFileDialog();
             dlg.Filter = "DbxEntityTracker Save (*.det)|*.det";
             dlg.Multiselect = false;
@@ -89,7 +93,10 @@ namespace DbxEntityTracker
 
         private void onPopulateClick(object sender, RoutedEventArgs e)
         {
+            _timestamp = DateTime.Now;
             updateAppSettings();
+            Utils.AtomicWriteToLog("populate useddf?" + AppSettings.DDF_SEARCH_ENABLED.ToString());
+
             _loadingText.Content = "Populating internal database based on your settings";
             loadingVisible(true);
             doPopulate();
@@ -113,6 +120,7 @@ namespace DbxEntityTracker
                     _parseOptions.Visibility = System.Windows.Visibility.Collapsed;
                     _lib.save();
                     showEntities();
+                    Utils.AtomicWriteToLog(String.Format("Populate done, time:{0}ms", (DateTime.Now - _timestamp).TotalMilliseconds));
                 });
             };
             cmd.Error = (string error) => {
@@ -324,6 +332,7 @@ namespace DbxEntityTracker
         private void onOpenInFrosted(object sender, RoutedEventArgs e)
         {
             doGenerateFrostedLink();
+            Utils.AtomicWriteToLog("open frosted " + _frostedLink);
             ThreadPool.QueueUserWorkItem(delegate
             {
                 Process process = Process.Start(@_frostedLink);
@@ -334,6 +343,7 @@ namespace DbxEntityTracker
             _lib = new EntityDbxLib();
             _time.Content = "Loading";
 
+            _lastItem = null;
             _content.Visibility = System.Windows.Visibility.Collapsed;
             loadingVisible(false);
             _parseOptions.Visibility = System.Windows.Visibility.Visible;

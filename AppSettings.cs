@@ -17,11 +17,27 @@ namespace DbxEntityTracker
         public static bool DDF_SEARCH_ENABLED = true;
         
         public static string APP_ROOT_FOLDER = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), APP_NAME);
+        public static string LOG_FILE = Path.Combine(Environment.CurrentDirectory, "./output/logging.txt");
         public static string APP_SAVE_FOLDER = Path.Combine(APP_ROOT_FOLDER, "./saves/");
         private static string CONFIG_FILE = Path.Combine(APP_ROOT_FOLDER, "./settings/config.ini");
 
         internal static void loadSettings()
         {
+            try
+            {
+                if (!File.Exists(LOG_FILE))
+                {
+                    var fi = new FileInfo(LOG_FILE);
+                    if (!fi.Directory.Exists)
+                        fi.Directory.Create();
+                    File.Create(fi.FullName).Dispose();
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Unable to create file...");
+            }
+
             var file = new FileInfo(CONFIG_FILE);
             if (!file.Exists)
             {

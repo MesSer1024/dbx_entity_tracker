@@ -20,6 +20,10 @@ namespace DbxEntityTracker
 
     class EntityDbxLib
     {
+        private const string DDF_ENTITY_FILTER = "entity ";
+        private const string DDF_COMPONENT_FILTER = "component ";
+
+
         public class EntityReference
         {
             public String EntityType { get; set; }
@@ -154,14 +158,27 @@ namespace DbxEntityTracker
                                 module = module.Remove(module.Length - 1);
                             moduleLocated = false; //set to true soon... just make sure that no file contains multiple modules
                         }
-                        else if (!insideEntity && line.StartsWith("entity "))
+                        else if (!insideEntity && line.StartsWith(DDF_ENTITY_FILTER))
                         {
                             if (module.Length == 0)
                             {
                                 //throw new Exception(String.Format("Unable to find module inside DDF-file ({0})", file));
 								module = "--N/A--";
                             }
-                            var name = line.Substring("entity ".Length);
+                            var name = line.Substring(DDF_ENTITY_FILTER.Length);
+                            name = name.Split(':')[0].Trim();
+                            var fakename = module + "." + name + "Data";
+                            entityTable.GetOrAdd(fakename, file.FullName);
+                            insideEntity = true;
+                        }
+                        else if (!insideEntity && line.StartsWith(DDF_COMPONENT_FILTER))
+                        {
+                            if (module.Length == 0)
+                            {
+                                //throw new Exception(String.Format("Unable to find module inside DDF-file ({0})", file));
+                                module = "--N/A--";
+                            }
+                            var name = line.Substring(DDF_COMPONENT_FILTER.Length);
                             name = name.Split(':')[0].Trim();
                             var fakename = module + "." + name + "Data";
                             entityTable.GetOrAdd(fakename, file.FullName);

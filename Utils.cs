@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -52,6 +53,29 @@ namespace DbxEntityTracker
             }
 
             return string.Format(pattern, max);
+        }
+
+        public static void AtomicWriteToLog(string data)
+        {
+            try
+            {
+                var fi = new FileInfo(AppSettings.LOG_FILE);
+                if (!fi.Directory.Exists)
+                    fi.Directory.Create();
+                if (!fi.Exists)
+                    File.Create(fi.FullName).Dispose();
+
+                using (FileStream fs = new FileStream(fi.FullName, FileMode.Open, FileSystemRights.AppendData, FileShare.Write, 4096, FileOptions.None))
+                {
+                    using (StreamWriter writer = new StreamWriter(fs))
+                    {
+                        var computerName = Environment.MachineName;
+                        writer.WriteLine("{2}|{1}|{0}", data, computerName, DateTime.Now);
+                        writer.Flush();
+                    }
+                }
+            }
+            catch (Exception e) { }
         }
     }
 }
