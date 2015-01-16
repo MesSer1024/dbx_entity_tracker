@@ -62,20 +62,18 @@ namespace DbxEntityTracker
                 var fi = new FileInfo(AppSettings.LOG_FILE);
                 if (!fi.Directory.Exists)
                     fi.Directory.Create();
-                if (!fi.Exists)
-                    File.Create(fi.FullName).Dispose();
 
-                using (FileStream fs = new FileStream(fi.FullName, FileMode.Open, FileSystemRights.AppendData, FileShare.Write, 4096, FileOptions.None))
+                using (StreamWriter writer = new StreamWriter(fi.FullName, true))
                 {
-                    using (StreamWriter writer = new StreamWriter(fs))
-                    {
-                        var computerName = Environment.MachineName;
-                        writer.WriteLine("{2}|{1}|{0}", data, computerName, DateTime.Now);
-                        writer.Flush();
-                    }
+                    var computerName = Environment.MachineName;
+                    writer.WriteLine("{2}|{1}|{0}", data, computerName, DateTime.Now);
+                    writer.Flush();
                 }
             }
-            catch (Exception e) { }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
         }
     }
 }
