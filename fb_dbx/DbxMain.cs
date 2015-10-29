@@ -25,21 +25,27 @@ namespace fb_dbx
             var parsedPartitions = new List<DbxUtils.PartitionData>();
             Console.WriteLine("---Parsing {0} Files--- total: {1}ms", files.Length, TimestampMs(start));
             int i = 0;
-            foreach (var file in files)
+
+            var threadLock = new object();
+            Parallel.ForEach(files, (file, state) =>
             {
                 if (file.Exists)
                 {
                     var items = DbxUtils.FindInstances(file);
                     if (items.Count > 0)
                     {
-                        parsedPartitions.AddRange(items);
+                        lock (threadLock)
+                        {
+                            parsedPartitions.AddRange(items);
+                        }
+
                     }
                 }
                 if (i++ % 500 == 99)
                 {
-                    Console.WriteLine("{0} Files parsed", i);
+                    Console.WriteLine("{0}/{1} Files parsed", i, files.Length);
                 }
-            }
+            });
 
             AllPartitions = parsedPartitions;
             Console.WriteLine("---Creating {0} instances--- total: {1}ms", parsedPartitions.Count, TimestampMs(start));
