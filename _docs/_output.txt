@@ -1,0 +1,7 @@
+[Single Threaded]
+
+34600 Files parsed
+35100 Files parsed
+---Creating 35124 instances--- total: 63484,1854ms
+---Filtering entities out of 1925347 instances--- total: 63786,3988ms
+---Found 622 entities total: 64130,6467ms

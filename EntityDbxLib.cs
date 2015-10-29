@@ -199,7 +199,7 @@ namespace DbxEntityTracker
                     state.Break();
             });
 
-            //ConcurrentDictionary seems to be slow when it comes to lookup, negelecting to convert to regular dictionary causes crossreference to take 10s instead of <100ms
+            //ConcurrentDictionary seems to be slow when it comes to lookup, neglecting to convert to regular dictionary causes cross reference to take 10s instead of <100ms
             return new Dictionary<string, string>(entityTable); 
         }
 
