@@ -107,7 +107,7 @@
     <Resource Include="horse.ico" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="fb_dbx\DbxUtils.csproj">
+    <ProjectReference Include="DbxUtils\DbxUtils.csproj">
       <Project>{adcc29ff-0eb3-4f45-bee1-d541d5c57a31}</Project>
       <Name>DbxUtils</Name>
     </ProjectReference>

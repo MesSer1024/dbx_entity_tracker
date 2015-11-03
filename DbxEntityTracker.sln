@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DbxEntityTracker", "DbxEntityTracker.csproj", "{8BF5D56A-7812-47D6-847F-8908021F628A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DbxUtils", "fb_dbx\DbxUtils.csproj", "{ADCC29FF-0EB3-4F45-BEE1-D541D5C57A31}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DbxUtils", "DbxUtils\DbxUtils.csproj", "{ADCC29FF-0EB3-4F45-BEE1-D541D5C57A31}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test_DbxUtils", "..\Test_DbxUtils\Test_DbxUtils.csproj", "{5F2BDE67-DE8F-4FBC-91B6-4E6915258180}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test_DbxUtils", "Test_DbxUtils\Test_DbxUtils.csproj", "{5F2BDE67-DE8F-4FBC-91B6-4E6915258180}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

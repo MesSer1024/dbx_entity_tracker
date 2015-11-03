@@ -2,8 +2,10 @@ _dbx_data_examples/*
 *.suo
 /bin/*
 /obj/*
-fb_dbx/bin/*
-fb_dbx/obj/*
+DbxUtils/bin/*
+DbxUtils/obj/*
+Test_dbxUtils/bin/*
+Test_dbxUtils/obj/*
 Newtonsoft.Json.6.0.6
 
 /packages
