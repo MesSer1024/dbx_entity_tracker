@@ -5,14 +5,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace fb_dbx
+namespace Dice.Frostbite.Framework
 {
-    static class DbxUtils
+    public static class DbxUtils
     {
         public class PartitionData
         {
             public string Filepath { get; set; }
             public string PartitionGuid { get; set; }
+            public long LastParsed { get; set; }
+
             public List<int> InstanceLineNumbers { get; private set; }
             public List<string> InstanceTypes { get; private set; }
             public List<string> InstanceGuids { get; private set; }
@@ -31,32 +33,71 @@ namespace fb_dbx
             public string Guid { get; set; }
             public string AssetType { get; set; }
 
-            public string ParentGuid { get; set; }
-            public string ParentPath { get; set; }
+            public string PartitionGuid { get; set; }
+            public string PartitionPath { get; set; }
+            public string PartitionName { get { return GetPartitionShortName(PartitionPath); } }
+        }
+
+        private static string GetPartitionShortName(string name)
+        {
+            int idx = name.LastIndexOf("\\") + 1;
+            return name.Substring(idx, name.Length - idx - 4); //remove ".dbx" as well
         }
 
         public static string GetRootPath()
         {
+            //return DataManager.Instance.RootPath; //"D:\\dice\\ws\\ws\\FutureData\\Source"
             return "D:\\dice\\ws\\ws\\FutureData\\Source";
         }
 
         public static FileInfo[] GetFiles(string rootFolder, string fileType = "dbx")
         {
             var dir = new DirectoryInfo(rootFolder.ToLower());
-            if (!dir.Exists)
-                throw new ArgumentException(String.Format("Folder does not exist: {0}", rootFolder));
-            Console.WriteLine("Searching for all dbx-files in folder:\n\t{0}", dir.FullName);
             return dir.GetFiles("*." + fileType, SearchOption.AllDirectories);
         }
 
-        public static List<PartitionData> FindInstances(FileInfo file)
+        public static List<DbxUtils.PartitionData> ParsePartitions(IEnumerable<FileInfo> dbxFiles, int totalFiles = 1)
+        {
+            //#TODO: See if we get performance increase if we let 50% of threads read biggest files and 50% read smallest files
+            int i = 0;
+            var threadLock = new object();
+            var partitions = new List<DbxUtils.PartitionData>();
+            Parallel.ForEach(dbxFiles, (file, state) =>
+            {
+                if (file.Exists)
+                {
+                    var items = DbxUtils.ParseDbxFile(file);
+                    if (items.Count > 0)
+                    {
+                        lock (threadLock)
+                        {
+                            partitions.AddRange(items);
+                        }
+
+                    }
+                }
+                if (i++ % 500 == 99)
+                {
+                    Console.WriteLine("{0}/{1}:\t{2:00.0}% Files parsed", i, totalFiles, (i / (float)totalFiles) * 100);
+                }
+            });
+
+            return partitions;
+        }
+
+        public static List<PartitionData> ParseDbxFile(FileInfo file)
         {
             var collection = new List<PartitionData>();
             var dbx_type_identifier = "type=\"";
+            var guid_length = 36;
             using (var sr = new StreamReader(file.FullName))
             {
-                var asset = new PartitionData();
-                asset.Filepath = file.FullName;
+                var asset = new PartitionData()
+                {
+                    Filepath = file.FullName,
+                    LastParsed = DateTime.Now.Ticks
+                };
+
                 int lineNumber = 0;
                 bool valid = false;
                 bool primaryInstanceFound = false;
@@ -71,7 +112,7 @@ namespace fb_dbx
                             throw new Exception("Unable to locate primary instance within first 20 lines of dbx-file");
                         if (line.Contains("primaryInstance"))
                         {
-                            var partitionGuid = findSubstring(line, "guid=\"", 36);
+                            var partitionGuid = findSubstring(line, "guid=\"", guid_length);
                             asset.PartitionGuid = partitionGuid;
                             primaryInstanceFound = true;
                         }
@@ -84,7 +125,7 @@ namespace fb_dbx
                             //Extract the type-identifier: Entity.SchematicShortcutCommonData
                             //Extract the guid: 5a5cdf29-50d5-44bd-9538-a08ba983872f
                         var assetType = findSubstring(line, startIdx + dbx_type_identifier.Length, "\"");
-                        var guid = findSubstring(line, "guid=\"", 36);
+                        var guid = findSubstring(line, "guid=\"", guid_length);
 
                         asset.InstanceLineNumbers.Add(lineNumber);
                         asset.InstanceTypes.Add(assetType);
@@ -111,14 +152,7 @@ namespace fb_dbx
             return source.Substring(idx + identifier.Length, count);
         }
 
-        //public static string findSubstring(string source, string startIdentifier, string endIdentifier)
-        //{
-        //    var startIdx = source.IndexOf(startIdentifier) + startIdentifier.Length;
-        //    var endIdx = source.IndexOf(endIdentifier, startIdx + 1);
-        //    return source.Substring(startIdx, endIdx - startIdx);
-        //}
-
-        internal static List<AssetInstance> CreateInstances(List<PartitionData> allItems)
+        public static List<AssetInstance> CreateInstances(List<PartitionData> allItems)
         {
             List<AssetInstance> instances = new List<AssetInstance>();
 
@@ -130,8 +164,8 @@ namespace fb_dbx
                     {
                         AssetType = partition.InstanceTypes[i],
                         Guid = partition.InstanceGuids[i],
-                        ParentGuid = partition.PartitionGuid,
-                        ParentPath = partition.Filepath
+                        PartitionGuid = partition.PartitionGuid,
+                        PartitionPath = partition.Filepath
                     };
                     instances.Add(instance);
                 }
@@ -140,20 +174,34 @@ namespace fb_dbx
             return instances;
         }
 
-        internal static List<string> FilterEntities(List<AssetInstance> instances)
+        public static List<string> GetUniqueEntityTypes(List<AssetInstance> instances)
         {
-            var entities = new List<string>();
-            foreach (var instance in instances)
-            {
-                if (instance.AssetType.Contains("EntityData"))
-                {
-                    entities.Add(instance.AssetType);
-                }
-            }
+            var foo = from entity in instances
+                      where entity.AssetType.Contains("EntityData")
+                      orderby entity.AssetType ascending
+                      select entity.AssetType;
 
-            var foo = entities.Distinct().ToList();
-            foo.Sort();
-            return foo;
+            return foo.Distinct().ToList();
+        }
+
+        public static string GetInfoTextForAsset(DbxUtils.AssetInstance asset)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("PartitionInfo:");
+            sb.AppendLine(String.Format("\tPartitionName: {0}", asset.PartitionName));
+            sb.AppendLine(String.Format("\tPartitionPath: {0}", asset.PartitionPath));
+            sb.AppendLine(String.Format("\tPartitionGuid: {0}", asset.PartitionGuid));
+            sb.AppendLine("\nAssetInfo:");
+            sb.AppendLine(String.Format("\tGUID: {0}", asset.Guid));
+            sb.AppendLine(String.Format("\tAssetType: {0}", asset.AssetType));
+
+            return sb.ToString();
+        }
+
+        public static List<DbxUtils.AssetInstance> FindEntities(string name, List<DbxUtils.AssetInstance> instances)
+        {
+            var items = instances.FindAll(a => a.AssetType.Contains(name));
+            return items;
         }
     }
 }

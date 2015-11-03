@@ -15,32 +15,36 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Collections.Concurrent;
 using Microsoft.Win32;
-using System.Threading;using System.Diagnostics;
-using System.ComponentModel;
-using DbxEntityTracker.commands;
 using System.Windows.Threading;
+using Dice.Frostbite.Framework;
+using Newtonsoft.Json;
+using System.Threading;
+using System.Diagnostics;
 
 namespace DbxEntityTracker
 {
-
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window
     {
-        private EntityDbxLib _lib;
-        private string _frostedLink;
-        private System.Timers.Timer _timer;
-        private bool _searchDdfFiles;
-        private string _lastItem;
-        private DateTime _timestamp;
+        private class EntityLib
+        {
+            public List<DbxUtils.AssetInstance> Entities { get; set; }
+            public List<string> EntityTypes { get; set; }
+        }
+
+        private class DbxEntityTracker_data
+        {
+            public List<DbxUtils.AssetInstance> Entities { get; set; }
+        }
+
+        private EntityLib EntityDB;
 
         public MainWindow()
         {
             InitializeComponent();
-            AppSettings.loadSettings();
             Application.Current.DispatcherUnhandledException += onUnhandledException;
-            readFromAppSettings();
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => { 
                 reset(); 
             }));
@@ -50,27 +54,9 @@ namespace DbxEntityTracker
 
         void onUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
-            applicationCrash(e.Exception);
+            ReportApplicationCrash(e.Exception);
             Utils.AtomicWriteToLog("crashed");
             Application.Current.Shutdown();
-        }
-
-        private void readFromAppSettings()
-        {
-            this.dbxRoot.Text = AppSettings.DBX_ROOT;
-            this.ddfRoot.Text = AppSettings.DDF_WSROOT;
-            this.suffix.Text = AppSettings.ENTITY_SUFFIX;
-            this._ddfCheckbox.IsChecked = AppSettings.DDF_SEARCH_ENABLED;
-            //this._database.Text = AppSettings.DATABASE;
-        }
-
-        private void updateAppSettings()
-        {
-            AppSettings.DBX_ROOT = this.dbxRoot.Text;
-            AppSettings.DDF_WSROOT = this.ddfRoot.Text;
-            AppSettings.ENTITY_SUFFIX = this.suffix.Text;
-            AppSettings.DDF_SEARCH_ENABLED = (bool)this._ddfCheckbox.IsChecked;
-            //AppSettings.DATABASE = this._database.Text;
         }
 
         private void onLoad(object sender, RoutedEventArgs e) {
@@ -79,7 +65,7 @@ namespace DbxEntityTracker
             dlg.Filter = "DbxEntityTracker Save (*.det)|*.det";
             dlg.Multiselect = false;
             dlg.FileOk += (dlgSender, args) => {
-                _lib.load((dlgSender as OpenFileDialog).FileName);
+                LoadDatabase((dlgSender as OpenFileDialog).FileName);
                 showEntities();
             };
             dlg.InitialDirectory = System.IO.Path.GetFullPath(AppSettings.APP_SAVE_FOLDER);
@@ -93,81 +79,109 @@ namespace DbxEntityTracker
 
         private void onPopulateClick(object sender, RoutedEventArgs e)
         {
-            _timestamp = DateTime.Now;
-            updateAppSettings();
-            Utils.AtomicWriteToLog("populate useddf?" + AppSettings.DDF_SEARCH_ENABLED.ToString());
-
+            Utils.AtomicWriteToLog("Populating internal database based on your settings");
             _loadingText.Content = "Populating internal database based on your settings";
-            loadingVisible(true);
-            doPopulate();
+            SetLoadingVisibility(true);
+            PopulateFiles();
         }
 
-        private void doPopulate() {
+        private void PopulateFiles() {
             var uithread = Application.Current.Dispatcher;
-            var cmd = new InitializeDatabaseCommand(_lib, _searchDdfFiles);
-            AppSettings.saveSettings();
 
-            cmd.AllFilesFound = () => {
-                uithread.Invoke(() => {
-                    _loadingText.Content = String.Format("{0}\n\nTotal DDF-files: {1}\nTotal DBX-files: {2}", _loadingText.Content, _lib.ddfFiles.Length, _lib.dbxFiles.Length);
-                });
-            };
-            cmd.AllFilesPopulated = () => {
-                uithread.Invoke(() => {
-                    loadingVisible(false);
-                    _content.Visibility = System.Windows.Visibility.Visible;
-                    _entities.ItemsSource = _lib.AllEntities.Keys;
-                    _parseOptions.Visibility = System.Windows.Visibility.Collapsed;
-                    _lib.save();
-                    showEntities();
-                    Utils.AtomicWriteToLog(String.Format("Populate done, time:{0}ms", (DateTime.Now - _timestamp).TotalMilliseconds));
-                });
-            };
-            cmd.Error = (string error) => {
-                uithread.Invoke(() => {
-                    MessageBox.Show(error);
-                    loadingVisible(false);
-                });
-            };
+            var start = DateTime.Now;
+            var root = dbxRoot.Text;
+            var files = DbxUtils.GetFiles(dbxRoot.Text);
+            Console.WriteLine("---Found {0} dbx-Files from \"{2}\" --- time: {1}ms", files.Length, GetMillisecondsSinceStart(start), DbxUtils.GetRootPath());
 
-            cmd.execute();
+            var sorted = files.OrderByDescending(a => a.Length).ToList();
+            Console.WriteLine("---Sorted {0} Files by size --- time: {1}ms", files.Length, GetMillisecondsSinceStart(start));
+
+            var partitions = DbxUtils.ParsePartitions(sorted, files.Length);
+            Console.WriteLine("---Parsed {0} partitions from dbx-files --- time: {1}ms", partitions.Count, GetMillisecondsSinceStart(start));
+
+            var instances = DbxUtils.CreateInstances(partitions);
+            Console.WriteLine("---Found {0} instances given all partitions --- time: {1}ms", instances.Count, GetMillisecondsSinceStart(start));
+
+            //Only save "entities" [due to OutOfMemoryException when dumping through JsonConvert...]
+            EntityDB.Entities = instances.FindAll(a => a.AssetType.Contains("EntityData"));
+            Console.WriteLine("---Found {0} entities --- time: {1}ms", EntityDB.Entities.Count, GetMillisecondsSinceStart(start));
+
+            EntityDB.EntityTypes = DbxUtils.GetUniqueEntityTypes(EntityDB.Entities);
+            Console.WriteLine("---Found {0} unique entity types --- time: {1}ms", EntityDB.EntityTypes.Count, GetMillisecondsSinceStart(start));
+
+
+            //on complete
+            uithread.Invoke(() =>
+            {
+                SetLoadingVisibility(false);
+                _content.Visibility = System.Windows.Visibility.Visible;
+                _entityTypes.ItemsSource = EntityDB.EntityTypes;
+                _references.ItemsSource = EntityDB.Entities;
+                _parseOptions.Visibility = System.Windows.Visibility.Collapsed;
+                showEntities();
+                Utils.AtomicWriteToLog(String.Format("Populate done, time: {0}ms", GetMillisecondsSinceStart(start)));
+            });
         }
 
-        private void loadingVisible(bool flag) {
+        private double GetMillisecondsSinceStart(DateTime start)
+        {
+            return (DateTime.Now - start).TotalMilliseconds;
+        }
+
+        void SaveDatabase(string path)
+        {
+            var save = new DbxEntityTracker_data()
+            {
+                Entities = EntityDB.Entities,
+            };
+
+            var output = JsonConvert.SerializeObject(save);
+
+            var file = new FileInfo(path);
+            if (!file.Directory.Exists)
+                file.Directory.Create();
+            File.WriteAllText(path, output);
+        }
+
+        void LoadDatabase(string path)
+        {
+            EntityDB = new EntityLib();
+            var file = new FileInfo(path);
+            if (file.Exists)
+            {
+                using (var sr = new StreamReader(file.FullName))
+                {
+                    string s = sr.ReadToEnd();
+                    var load = JsonConvert.DeserializeObject<DbxEntityTracker_data>(s);
+                    EntityDB.Entities = load.Entities;
+                }
+
+                EntityDB.EntityTypes = DbxUtils.GetUniqueEntityTypes(EntityDB.Entities);
+            }
+            else
+            {
+                throw new Exception(String.Format("File does not exist \"{0}\"", path));
+            }
+        }
+
+        private void SetLoadingVisibility(bool flag) {
             var uiElementsEnabled = !flag;
-            ddfRoot.IsEnabled = uiElementsEnabled;
             dbxRoot.IsEnabled = uiElementsEnabled;
-            suffix.IsEnabled = uiElementsEnabled;
             parseButton.IsEnabled = uiElementsEnabled;
             loadButton.IsEnabled = uiElementsEnabled;
 
             if (flag)
             {
-
                 var startTime = DateTime.Now;
                 var s = _loadingText.Content.ToString();
                 _loading.Visibility = System.Windows.Visibility.Visible;
-                var uithread = Application.Current.Dispatcher;
-                if (_timer == null) {
-                    _timer = new System.Timers.Timer(495);
-                    _timer.Elapsed += (Object source, System.Timers.ElapsedEventArgs e) => {
-                        uithread.Invoke(() => {
-                            var stringPrefix = _lib.IsCancelled ? "Canceling:" : "Loading:";
-                            _time.Content = string.Format("{0} {1}s", stringPrefix, (DateTime.Now - startTime).TotalSeconds.ToString("0"));
-                        });
-                    };
-                }
-                _timer.Start();
+                _time.Content = String.Format("Loading: {0}s", (DateTime.Now - startTime).TotalSeconds.ToString("0"));
             } else {
-                if (_timer != null) {
-                    _timer.Stop();
-                    _timer = null; //need to create a new timer since anonymous function has another variable of "start time" compared to what we want
-                }
                 _loading.Visibility = System.Windows.Visibility.Collapsed;
             }
         }
 
-        private void applicationCrash(Exception ex)
+        private void ReportApplicationCrash(Exception ex)
         {
             var sb = new StringBuilder();
             sb.AppendLine(ex.Message);
@@ -187,185 +201,90 @@ namespace DbxEntityTracker
         private void showEntities()
         {
             _content.Visibility = System.Windows.Visibility.Visible;
-            _entities.ItemsSource = _lib.AllEntities.Keys;
+            _entityTypes.ItemsSource = EntityDB.EntityTypes;
             _parseOptions.Visibility = System.Windows.Visibility.Collapsed;
         }
 
         private void _entities_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_entities.SelectedItem == null)
+            if (_entityTypes.SelectedItem == null)
                 return;
-            var key = _entities.SelectedItem.ToString();
-            _infoPanel.Text = _lib.FindDdfSource(key) ?? "";
-            _references.ItemsSource = _lib.FindDbxReferences(key);
-            _lastItem = _entities.SelectedItem.ToString();
+            var key = _entityTypes.SelectedItem.ToString();
+            _references.ItemsSource = DbxUtils.FindEntities(key, EntityDB.Entities);
+            _infoPanel.Text = "";
         }
 
         private void _references_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            var key = _entities.SelectedItem == null ? _lastItem : _entities.SelectedItem.ToString();
+            var key = _entityTypes.SelectedItem == null ? string.Empty : _entityTypes.SelectedItem.ToString();
             var idx = _references.SelectedIndex;
             if (idx < 0 || String.IsNullOrEmpty(key))
             {
-                _infoPanel.Text = "";
                 return;
             }
-            var sb = new StringBuilder(_lib.FindDdfSource(key));
-            sb.AppendLine();
-            sb.AppendLine();
-            sb.AppendLine("DbxInfo:");
-            var dbx = _lib.GetDbxInfo(key, idx);
-            if (dbx != null)
-            {
-                sb.AppendLine("FilePath: " + dbx.FilePath);
-                sb.AppendLine("LineNumber: " + dbx.LineNumber);
-                sb.AppendLine("EntityType: " + dbx.EntityType);
-            }
-            else
-            {
-                sb.AppendLine(String.Format("key: {0}, index: {1} is null", key, idx));
-            }
-            _infoPanel.Text = sb.ToString();
+
+            var item = _references.SelectedItem as DbxUtils.AssetInstance;
+            _infoPanel.Text = DbxUtils.GetInfoTextForAsset(item);
         }
 
         private void _textFilter_TextChanged(object sender, TextChangedEventArgs e)
         {
-            var all = _lib.AllEntities.Keys.ToList();
-            if (all == null || all.Count == 0) {
+            if (EntityDB == null || EntityDB.EntityTypes.Count == 0)
+                return;
+            if (String.IsNullOrWhiteSpace(_textFilter.Text))
+            {
+                _entityTypes.ItemsSource = EntityDB.EntityTypes;
+                _entityTypes.Items.Refresh();
                 return;
             }
 
-            if (String.IsNullOrEmpty(_textFilter.Text))
-            {
-                _entities.ItemsSource = all;
-            }
-            else
-            {
-                //generate filters
-                var filters = new List<string>();
-                filters.AddRange(_textFilter.Text.Split(' '));
+            var wordFilters = _textFilter.Text.Split(' ');
+            //only fill items where all words exists
+            var items = from item in EntityDB.EntityTypes where wordFilters.All(a => item.IndexOf(a, StringComparison.OrdinalIgnoreCase) >= 0) select item;
+            _entityTypes.ItemsSource = items;
 
-                //if we have a currently selected item in reference view, add it to list
-                var items = new List<string>();
-                if (_references.SelectedItem != null)
-                    items.Add(_lastItem);
-
-                //check if all words exists in file name
-                items.AddRange(from item in all where filters.All(a => item.IndexOf(a,StringComparison.OrdinalIgnoreCase) >= 0) select item);
-                _entities.ItemsSource = items.ToList();
-            }
-
-            _entities.Items.Refresh();
+            _entityTypes.Items.Refresh();
         }
-
-        //private void _database_TextChanged_1(object sender, TextChangedEventArgs e)
-        //{
-        //    AppSettings.DATABASE = _database.Text;
-        //}
 
         private void onNewSearchClick(object sender, RoutedEventArgs e)
         {
-            if (_lib.IsRunning)
-            {
-                _lib.CancleTasks();
-            }
-            else
-            {
-                reset();
-            }
+            reset();
         }
 
-        private void doGenerateFrostedLink()
+        private string doGenerateFrostedLink()
         {
-            var key = _entities.SelectedItem == null ? _lastItem : _entities.SelectedItem.ToString();
-            var idx = _references.SelectedIndex;
-            var sb = new StringBuilder();
-            if (String.IsNullOrEmpty(key) || idx < 0)
-            {
-                sb = new StringBuilder(_infoPanel.Text);
-                sb.AppendLine("----------------------");
-                sb.AppendLine("FrostEd-Link");
-                sb.AppendLine("-----------------Unable to generate frosted link, invalid selection in UI?");
-                _infoPanel.Text = sb.ToString();
-                return;
-            }
-            var dbx = _lib.GetDbxInfo(key, idx);
+            var asset = _references.SelectedItem as DbxUtils.AssetInstance;
 
-            var frostedLink = new StringBuilder();
-            var allLines = File.ReadAllLines(dbx.FilePath);
             //frostedLink.AppendFormat("frosted://{0};@{1}/{2}", AppSettings.DATABASE, getOwningGuid(allLines, dbx.FilePath), getInstanceGuid(allLines, dbx.LineNumber - 1));
-            frostedLink.AppendFormat("frosted://{0};@{1}/{2}", "", getOwningGuid(allLines, dbx.FilePath), getInstanceGuid(allLines, dbx.LineNumber - 1));
-            _frostedLink = frostedLink.ToString();
-            sb = new StringBuilder(_infoPanel.Text);
+            var frostedLink = new StringBuilder();
+            frostedLink.AppendFormat("frosted://{0};@{1}/{2}", "", asset.PartitionGuid, asset.Guid);
+            var sb = new StringBuilder(_infoPanel.Text);
             sb.AppendLine();
             sb.AppendLine("----------------------");
             sb.AppendLine("FrostEd-Link");
             sb.AppendLine(frostedLink.ToString());
             _infoPanel.Text = sb.ToString();
-        }
-
-        private string getOwningGuid(string[] lines, string file)
-        {
-            int counter = 0;
-            foreach (var line in lines)
-            {
-                counter++;
-                if (line.Contains("primaryInstance"))
-                {
-                    var guid = _lib.findSubstring(line, "guid=\"", 36);
-                    return guid;
-                }
-                if (counter > 20)
-                    throw new Exception("Unable to find primaryInstance within 20 lines in file: " + file);
-            }
-            return "";
-        }
-
-        private string getInstanceGuid(string[] lines, int lineNumber)
-        {
-            var line = lines[lineNumber];
-
-            var guid = _lib.findSubstring(line, "guid=\"", 36);
-            return guid;
+            return frostedLink.ToString();
         }
 
         private void onOpenInFrosted(object sender, RoutedEventArgs e)
         {
-            doGenerateFrostedLink();
-            Utils.AtomicWriteToLog("open frosted " + _frostedLink);
+            var s = doGenerateFrostedLink();
+            Utils.AtomicWriteToLog("open frosted " + s);
             ThreadPool.QueueUserWorkItem(delegate
             {
-                Process process = Process.Start(@_frostedLink);
+                Process process = Process.Start(@s);
             });
         }
 
         private void reset() {
-            _lib = new EntityDbxLib();
+            EntityDB = new EntityLib();
+            dbxRoot.Text = DbxUtils.GetRootPath();
             _time.Content = "Loading";
 
-            _lastItem = null;
             _content.Visibility = System.Windows.Visibility.Collapsed;
-            loadingVisible(false);
+            SetLoadingVisibility(false);
             _parseOptions.Visibility = System.Windows.Visibility.Visible;
-            updateDdfStatus();
-        }
-
-        private void CheckBox_Click_1(object sender, RoutedEventArgs e)
-        {
-            updateDdfStatus();
-        }
-
-        private void updateDdfStatus()
-        {
-            bool status = (bool)_ddfCheckbox.IsChecked;
-            ddfRoot.IsEnabled = status;
-            ddfRoot.IsReadOnly = !status;
-            _searchDdfFiles = status;
-            if (suffix != null)
-            {
-                suffix.IsEnabled = status;
-                suffix.IsReadOnly = !status;
-            }
         }
     }
 }

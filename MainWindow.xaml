@@ -23,15 +23,8 @@
                     <Label>DBX Root:</Label>
                     <TextBox Name="dbxRoot" MinWidth="250" VerticalContentAlignment="Center" />
                 </DockPanel>
-                <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}">
-                    <Label>DDF Root:</Label>
-                    <TextBox Name="ddfRoot" MinWidth="250" VerticalContentAlignment="Center" />
-                    <CheckBox Name="_ddfCheckbox" Click="CheckBox_Click_1" VerticalContentAlignment="Center" IsChecked="True">Enable DDF-files</CheckBox>
-                </DockPanel>
-                <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}">
-                    <Label>Entity Suffix:</Label>
-                    <TextBox Name="suffix" MinWidth="250" VerticalContentAlignment="Center" />
-                </DockPanel>
+                <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}"/>
+                <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}"/>
                 <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}">
                     <Button Name="parseButton"  Padding="6" Margin="10" DockPanel.Dock="Left" Click="onPopulateClick">Parse Files</Button>
                     <Button Name="loadButton"  Padding="6" Margin="10" DockPanel.Dock="Left" Click="onLoad">Load Data</Button>
@@ -48,7 +41,7 @@
                     <Label>Filter:</Label>
                     <TextBox Name="_textFilter" TextChanged="_textFilter_TextChanged" />
                 </DockPanel>
-                <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_entities" SelectionChanged="_entities_SelectionChanged">
+                <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_entityTypes" SelectionChanged="_entities_SelectionChanged">
                     <ListBox.Resources>
                         <Style TargetType="{x:Type ListBoxItem}">
                             <Setter Property="Template">
@@ -69,7 +62,7 @@
                         </Style>
                     </ListBox.Resources>
                 </ListBox>
-                <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_references" SelectionChanged="_references_SelectionChanged">
+                <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_references" SelectionChanged="_references_SelectionChanged" DisplayMemberPath="PartitionName">
                     <ListBox.Resources>
                         <ContextMenu x:Key="MyContextMenu">
                             <MenuItem Header="Open in FrostEd" Click="onOpenInFrosted" />

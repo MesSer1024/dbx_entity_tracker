@@ -13,3 +13,16 @@
 ---Filtering entities out of 1925347 instances--- total: 12314,7744ms
 ---Found 622 entities total: 12730,0651ms
 
+[Multi threaded file-parsing (using File.ReadAllLines) instead of StreamReader]
+34100/35127 Files parsed
+34600/35127 Files parsed
+---Creating 35124 instances--- total: 17954,762ms
+---Filtering entities out of 1925347 instances--- total: 18294,0033ms
+---Found 622 entities total: 18649,256ms
+
+[Multi threaded, files sorted by Largest file gone first...]
+34600/35127 Files parsed
+35100/35127 Files parsed
+---Creating 35124 instances--- total: 12076,1966ms
+---Filtering entities out of 1925347 instances--- total: 12429,4482ms
+---Found 622 entities total: 12819,7429ms
