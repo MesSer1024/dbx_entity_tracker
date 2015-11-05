@@ -17,7 +17,6 @@ using System.Collections.Concurrent;
 using Microsoft.Win32;
 using System.Windows.Threading;
 using Dice.Frostbite.Framework;
-using Newtonsoft.Json;
 using System.Threading;
 using System.Diagnostics;
 
@@ -28,7 +27,7 @@ namespace DbxEntityTracker
     /// </summary>
     public partial class MainWindow : Window
     {
-        private InstanceDatabase EntityDB;
+        private EntityDatabase EntityDB;
 
         public MainWindow()
         {
@@ -47,21 +46,28 @@ namespace DbxEntityTracker
         }
 
         private void onLoad(object sender, RoutedEventArgs e) {
-            Utils.AtomicWriteToLog("load");
-            var dlg = new OpenFileDialog();
-            dlg.Filter = "DbxEntityTracker Save (*.det)|*.det";
-            dlg.Multiselect = false;
-            dlg.FileOk += (dlgSender, args) => {
-                LoadDatabase((dlgSender as OpenFileDialog).FileName);
-                showEntities();
-            };
-            dlg.InitialDirectory = System.IO.Path.GetFullPath(AppSettings.APP_SAVE_FOLDER);
-            var dir = new DirectoryInfo(dlg.InitialDirectory);
-            if (!dir.Exists)
-                dir.Create();
-            dlg.FileName = "_lastSave.det";
-            dlg.Title = "Open a previous search";
-            dlg.ShowDialog();
+            var start = DateTime.Now;
+
+            if (EntityDB.CanLoadDatabase())
+            {
+                Utils.AtomicWriteToLog("load");
+                SetLoadingVisibility(true);
+                var uithread = Application.Current.Dispatcher;
+
+                Task.Run(() =>
+                {
+                    EntityDB.LoadDatabase();
+                    uithread.Invoke(() =>
+                    {
+                        SetLoadingVisibility(false);
+                        _content.Visibility = System.Windows.Visibility.Visible;
+                        _parseOptions.Visibility = System.Windows.Visibility.Collapsed;
+                        showEntities();
+                        Utils.AtomicWriteToLog(String.Format("Populate done, time: {0}ms", GetMillisecondsSinceStart(start)));
+                    });
+                }
+                );
+            }
         }
 
         private void onPopulateClick(object sender, RoutedEventArgs e)
@@ -69,69 +75,28 @@ namespace DbxEntityTracker
             Utils.AtomicWriteToLog("Populating internal database based on your settings");
             _loadingText.Content = "Populating internal database based on your settings";
             SetLoadingVisibility(true);
-            PopulateFiles();
-        }
-
-        private void PopulateFiles() {
+        
             var uithread = Application.Current.Dispatcher;
-
             var start = DateTime.Now;
-            var root = dbxRoot.Text;
-            var files = DbxUtils.GetFiles(dbxRoot.Text);
-            Console.WriteLine("---Found {0} dbx-Files from \"{2}\" --- time: {1}ms", files.Length, GetMillisecondsSinceStart(start), DbxUtils.GetRootPath());
-
-            var sorted = files.OrderByDescending(a => a.Length).ToList();
-            Console.WriteLine("---Sorted {0} Files by size --- time: {1}ms", files.Length, GetMillisecondsSinceStart(start));
-
-            var partitions = DbxUtils.ParsePartitions(sorted, files.Length);
-            Console.WriteLine("---Parsed {0} partitions from dbx-files --- time: {1}ms", partitions.Count, GetMillisecondsSinceStart(start));
-
-            var instances = DbxUtils.CreateInstances(partitions);
-            Console.WriteLine("---Found {0} instances given all partitions --- time: {1}ms", instances.Count, GetMillisecondsSinceStart(start));
-
-            //Only save "entities" [due to OutOfMemoryException when dumping through JsonConvert...]
-            EntityDB.Entities = instances.FindAll(a => a.AssetType.Contains("EntityData"));
-            Console.WriteLine("---Found {0} entities --- time: {1}ms", EntityDB.Entities.Count, GetMillisecondsSinceStart(start));
-
-            EntityDB.EntityTypes = DbxUtils.GetUniqueEntityTypes(EntityDB.Entities);
-            Console.WriteLine("---Found {0} unique entity types --- time: {1}ms", EntityDB.EntityTypes.Count, GetMillisecondsSinceStart(start));
-
-
-            //on complete
-            uithread.Invoke(() =>
+            Task.Run(() =>
             {
-                SetLoadingVisibility(false);
-                _content.Visibility = System.Windows.Visibility.Visible;
-                _entityTypes.ItemsSource = EntityDB.EntityTypes;
-                _references.ItemsSource = EntityDB.Entities;
-                _parseOptions.Visibility = System.Windows.Visibility.Collapsed;
-                showEntities();
-                Utils.AtomicWriteToLog(String.Format("Populate done, time: {0}ms", GetMillisecondsSinceStart(start)));
+                EntityDB.RefreshDatabase();
+
+                //on complete
+                uithread.Invoke(() =>
+                {
+                    SetLoadingVisibility(false);
+                    _content.Visibility = System.Windows.Visibility.Visible;
+                    _parseOptions.Visibility = System.Windows.Visibility.Collapsed;
+                    showEntities();
+                    Utils.AtomicWriteToLog(String.Format("Populate done, time: {0}ms", GetMillisecondsSinceStart(start)));
+                });
             });
         }
 
         private double GetMillisecondsSinceStart(DateTime start)
         {
             return (DateTime.Now - start).TotalMilliseconds;
-        }
-
-        void LoadDatabase(string path)
-        {
-            EntityDB = new InstanceDatabase();
-            var file = new FileInfo(path);
-            if (file.Exists)
-            {
-                using (var sr = new StreamReader(file.FullName))
-                {
-                    EntityDB.Load();
-                }
-
-                EntityDB.EntityTypes = DbxUtils.GetUniqueEntityTypes(EntityDB.Entities);
-            }
-            else
-            {
-                throw new Exception(String.Format("File does not exist \"{0}\"", path));
-            }
         }
 
         private void SetLoadingVisibility(bool flag) {
@@ -172,6 +137,7 @@ namespace DbxEntityTracker
         {
             _content.Visibility = System.Windows.Visibility.Visible;
             _entityTypes.ItemsSource = EntityDB.EntityTypes;
+            _references.Items.Clear();
             _parseOptions.Visibility = System.Windows.Visibility.Collapsed;
         }
 
@@ -180,7 +146,7 @@ namespace DbxEntityTracker
             if (_entityTypes.SelectedItem == null)
                 return;
             var key = _entityTypes.SelectedItem.ToString();
-            _references.ItemsSource = DbxUtils.FindEntities(key, EntityDB.Entities);
+            _references.ItemsSource = DbxUtils.GetEntities(EntityDB.Entities, key);
             _infoPanel.Text = "";
         }
 
@@ -248,8 +214,8 @@ namespace DbxEntityTracker
         }
 
         private void reset() {
-            EntityDB = new InstanceDatabase();
-            dbxRoot.Text = DbxUtils.GetRootPath();
+            EntityDB = new EntityDatabase();
+            dbxRoot.Text = EntityDatabase.RootPath;
             _time.Content = "Loading";
 
             _content.Visibility = System.Windows.Visibility.Collapsed;

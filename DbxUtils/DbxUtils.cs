@@ -38,21 +38,6 @@ namespace Dice.Frostbite.Framework
             public string PartitionName { get { return GetPartitionShortName(PartitionPath); } }
         }
 
-        private static string GetPartitionShortName(string name)
-        {
-            int idx = name.LastIndexOf("\\") + 1;
-            return name.Substring(idx, name.Length - idx - 4); //remove ".dbx" as well
-        }
-
-        public static string RootPath
-        {
-            get
-            {
-                //return DataManager.Instance.RootPath;
-                return "D:\\dice\\ws\\ws\\FutureData\\Source";
-            }
-        }
-
         public static FileInfo[] GetFiles(string rootFolder, string fileType = "dbx")
         {
             var dir = new DirectoryInfo(rootFolder.ToLower());
@@ -61,6 +46,7 @@ namespace Dice.Frostbite.Framework
 
         public static List<DbxUtils.PartitionData> ParseFiles(IEnumerable<FileInfo> dbxFiles)
         {
+            dbxFiles = dbxFiles.OrderByDescending(a => a.Length).ToList();
             //#TODO: See if we get performance increase if we let 50% of threads read biggest files and 50% read smallest files
             var threadLock = new object();
             var partitions = new List<DbxUtils.PartitionData>();
@@ -195,10 +181,9 @@ namespace Dice.Frostbite.Framework
             return sb.ToString();
         }
 
-        public static List<DbxUtils.AssetInstance> GetEntities(List<DbxUtils.AssetInstance> instances)
+        public static List<DbxUtils.AssetInstance> GetEntities(List<DbxUtils.AssetInstance> instances, string identifier = "EntityData")
         {
-            var identifier = "EntityData";
-            var items = instances.FindAll(a => a.AssetType.Contains(identifier)).OrderBy(a => a.PartitionName);
+            var items = instances.FindAll(a => a.AssetType.Contains(identifier));
             items.OrderBy(a => a.PartitionName);
             return items.ToList();
         }
@@ -211,6 +196,27 @@ namespace Dice.Frostbite.Framework
                 output.Add(file.FullName, file.LastWriteTime.Ticks);
             }
             return output;
+        }
+
+        public static List<FileInfo> GetDirtyFiles(FileInfo[] files, Dictionary<string, long> fileTimestamps)
+        {
+            var output = new List<FileInfo>();
+            foreach (var file in files)
+            {
+                var key = file.FullName;
+                bool differentTimestamps = fileTimestamps.ContainsKey(key) ? fileTimestamps[key] != file.LastWriteTime.Ticks : true;
+                if (differentTimestamps)
+                {
+                    output.Add(file);
+                }
+            }
+            return output;
+        }
+
+        private static string GetPartitionShortName(string name)
+        {
+            int idx = name.LastIndexOf("\\") + 1;
+            return name.Substring(idx, name.Length - idx - 4); //remove ".dbx" as well
         }
     }
 }
