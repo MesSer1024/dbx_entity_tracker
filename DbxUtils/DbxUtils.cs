@@ -44,10 +44,13 @@ namespace Dice.Frostbite.Framework
             return name.Substring(idx, name.Length - idx - 4); //remove ".dbx" as well
         }
 
-        public static string GetRootPath()
+        public static string RootPath
         {
-            //return DataManager.Instance.RootPath; //"D:\\dice\\ws\\ws\\FutureData\\Source"
-            return "D:\\dice\\ws\\ws\\FutureData\\Source";
+            get
+            {
+                //return DataManager.Instance.RootPath;
+                return "D:\\dice\\ws\\ws\\FutureData\\Source";
+            }
         }
 
         public static FileInfo[] GetFiles(string rootFolder, string fileType = "dbx")
@@ -56,10 +59,9 @@ namespace Dice.Frostbite.Framework
             return dir.GetFiles("*." + fileType, SearchOption.AllDirectories);
         }
 
-        public static List<DbxUtils.PartitionData> ParsePartitions(IEnumerable<FileInfo> dbxFiles, int totalFiles = 1)
+        public static List<DbxUtils.PartitionData> ParseFiles(IEnumerable<FileInfo> dbxFiles)
         {
             //#TODO: See if we get performance increase if we let 50% of threads read biggest files and 50% read smallest files
-            int i = 0;
             var threadLock = new object();
             var partitions = new List<DbxUtils.PartitionData>();
             Parallel.ForEach(dbxFiles, (file, state) =>
@@ -75,10 +77,6 @@ namespace Dice.Frostbite.Framework
                         }
 
                     }
-                }
-                if (i++ % 500 == 99)
-                {
-                    Console.WriteLine("{0}/{1}:\t{2:00.0}% Files parsed", i, totalFiles, (i / (float)totalFiles) * 100);
                 }
             });
 
@@ -174,10 +172,9 @@ namespace Dice.Frostbite.Framework
             return instances;
         }
 
-        public static List<string> GetUniqueEntityTypes(List<AssetInstance> instances)
+        public static List<string> GetUniqueAssetTypes(List<AssetInstance> instances)
         {
             var foo = from entity in instances
-                      where entity.AssetType.Contains("EntityData")
                       orderby entity.AssetType ascending
                       select entity.AssetType;
 
@@ -198,10 +195,22 @@ namespace Dice.Frostbite.Framework
             return sb.ToString();
         }
 
-        public static List<DbxUtils.AssetInstance> FindEntities(string name, List<DbxUtils.AssetInstance> instances)
+        public static List<DbxUtils.AssetInstance> GetEntities(List<DbxUtils.AssetInstance> instances)
         {
-            var items = instances.FindAll(a => a.AssetType.Contains(name));
-            return items;
+            var identifier = "EntityData";
+            var items = instances.FindAll(a => a.AssetType.Contains(identifier)).OrderBy(a => a.PartitionName);
+            items.OrderBy(a => a.PartitionName);
+            return items.ToList();
+        }
+
+        public static Dictionary<string, long> GetFileTimestamps(IEnumerable<FileInfo> files)
+        {
+            var output = new Dictionary<string, long>();
+            foreach (var file in files)
+            {
+                output.Add(file.FullName, file.LastWriteTime.Ticks);
+            }
+            return output;
         }
     }
 }

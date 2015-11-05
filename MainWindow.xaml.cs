@@ -28,18 +28,7 @@ namespace DbxEntityTracker
     /// </summary>
     public partial class MainWindow : Window
     {
-        private class EntityLib
-        {
-            public List<DbxUtils.AssetInstance> Entities { get; set; }
-            public List<string> EntityTypes { get; set; }
-        }
-
-        private class DbxEntityTracker_data
-        {
-            public List<DbxUtils.AssetInstance> Entities { get; set; }
-        }
-
-        private EntityLib EntityDB;
+        private InstanceDatabase EntityDB;
 
         public MainWindow()
         {
@@ -48,9 +37,7 @@ namespace DbxEntityTracker
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => { 
                 reset(); 
             }));
-
         }
-
 
         void onUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
@@ -128,32 +115,15 @@ namespace DbxEntityTracker
             return (DateTime.Now - start).TotalMilliseconds;
         }
 
-        void SaveDatabase(string path)
-        {
-            var save = new DbxEntityTracker_data()
-            {
-                Entities = EntityDB.Entities,
-            };
-
-            var output = JsonConvert.SerializeObject(save);
-
-            var file = new FileInfo(path);
-            if (!file.Directory.Exists)
-                file.Directory.Create();
-            File.WriteAllText(path, output);
-        }
-
         void LoadDatabase(string path)
         {
-            EntityDB = new EntityLib();
+            EntityDB = new InstanceDatabase();
             var file = new FileInfo(path);
             if (file.Exists)
             {
                 using (var sr = new StreamReader(file.FullName))
                 {
-                    string s = sr.ReadToEnd();
-                    var load = JsonConvert.DeserializeObject<DbxEntityTracker_data>(s);
-                    EntityDB.Entities = load.Entities;
+                    EntityDB.Load();
                 }
 
                 EntityDB.EntityTypes = DbxUtils.GetUniqueEntityTypes(EntityDB.Entities);
@@ -278,7 +248,7 @@ namespace DbxEntityTracker
         }
 
         private void reset() {
-            EntityDB = new EntityLib();
+            EntityDB = new InstanceDatabase();
             dbxRoot.Text = DbxUtils.GetRootPath();
             _time.Content = "Loading";
 
