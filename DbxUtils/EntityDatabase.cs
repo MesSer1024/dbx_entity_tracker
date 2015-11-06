@@ -9,7 +9,8 @@ using System.Threading.Tasks;
 namespace Dice.Frostbite.Framework
 {
     public class EntityDatabase
-    {
+{   
+        #region Private Classes/Fields/Properties
         private class save_data
         {
             public List<DbxUtils.AssetInstance> Entities { get; set; }
@@ -17,12 +18,23 @@ namespace Dice.Frostbite.Framework
         }
 
         private const string SAVE_FILE = "./state/instance_db/_lastSave_v0.et";
+        private static string _root = "D:\\dice\\ws\\ws\\FutureData\\Source";
+        /// <summary>
+        /// (Dictionary key=file.FullName, value=file.LastWriteTime.Ticks)
+        /// </summary>
         private Dictionary<string, long> FileTimestamps { get; set; }
+        #endregion
+
+        public DatabaseState State { get; private set; }
+        public enum DatabaseState
+        {
+            Empty,
+            Populated,
+        }
 
         public List<DbxUtils.AssetInstance> Entities { get; private set; }
         public List<string> EntityTypes { get; private set; }
 
-        private static string _root = "D:\\dice\\ws\\ws\\FutureData\\Source";
         public static string RootPath
         {
             get { return _root; }
@@ -35,19 +47,30 @@ namespace Dice.Frostbite.Framework
             ResetDatabase();
         }
 
+        /// <summary>
+        /// Wipe database completely, if followed by RefreshDatabase() ALL DBX-files will be parsed from scratch
+        /// </summary>
         public void ResetDatabase()
         {
             Entities = new List<DbxUtils.AssetInstance>();
             EntityTypes = new List<string>();
             FileTimestamps = new Dictionary<string, long>();
+            State = DatabaseState.Empty;
         }
 
+        /// <summary>
+        /// If database can be loaded (there exists a previous save/autosave)
+        /// </summary>
+        /// <returns></returns>
         public bool CanLoadDatabase()
         {
             return File.Exists(SAVE_FILE);
         }
 
-        public void LoadDatabase()
+        /// <summary>
+        /// Loads a previously saved database, should be preceded by CanLoadDatabase to avoid Exception
+        /// </summary>
+        public void LoadDatabase(bool refreshDatabase=true)
         {
             if (CanLoadDatabase())
             {
@@ -55,8 +78,16 @@ namespace Dice.Frostbite.Framework
                 var load = JsonConvert.DeserializeObject<save_data>(s);
                 Entities = load.Entities;
                 FileTimestamps = load.FileTimestamps;
+                State = DatabaseState.Populated;
+                if (refreshDatabase)
+                    try
+                {
+                    RefreshDatabase(true);
+                } catch(Exception e)
+                    {
+                        Console.WriteLine("Exception caught: {0}", e.ToString());
 
-                RefreshDatabase();
+                    }
             }
             else
             {
@@ -64,17 +95,59 @@ namespace Dice.Frostbite.Framework
             }
         }
 
-        public void RefreshDatabase()
+        /// <summary>
+        /// Checks for modified dbx-files given "RootPath" and updates the database accordingly
+        /// </summary>
+        public void RefreshDatabase(bool save = true)
         {
+            if (!Directory.Exists(RootPath))
+                throw new Exception(String.Format("Folder \"{0}\" does not exist", RootPath));
             var allFiles = DbxUtils.GetFiles(RootPath);
+
+            var deletedFiles = DbxUtils.GetDeletedFiles(allFiles, FileTimestamps);
+            RemoveEntriesByFilePath(deletedFiles);
+
             var dirtyFiles = DbxUtils.GetDirtyFiles(allFiles, FileTimestamps);
-            if (dirtyFiles.Count > 0)
-            {
-                UpdateDirtyInstances(dirtyFiles);
+            UpdateDirtyInstances(dirtyFiles);
+
+            //save changes
+            bool modified = dirtyFiles.Count > 0 || deletedFiles.Count > 0;
+            if (save && modified)
                 SaveDatabase(Entities, FileTimestamps);
+            State = DatabaseState.Populated;
+        }
+
+        private void UpdateDirtyInstances(List<FileInfo> dirtyFiles)
+        {
+            if (dirtyFiles.Count == 0)
+                return;
+
+            //remove all entries referred to by a dirty file
+            RemoveEntriesByFilePath(dirtyFiles);
+
+            //add dirty entries to database
+            var timestamps = DbxUtils.GetFileTimestamps(dirtyFiles);
+            var partitions = DbxUtils.ParseDbxFiles(dirtyFiles);
+            var instances = DbxUtils.CreateInstances(partitions);
+
+            Entities.AddRange(DbxUtils.GetEntities(instances));
+            FileTimestamps = FileTimestamps.Concat(timestamps).ToDictionary(x => x.Key, x => x.Value); //assumes there are no duplicate keys
+
+            EntityTypes = DbxUtils.GetUniqueAssetTypes(Entities);
+        }
+
+        private void RemoveEntriesByFilePath(List<FileInfo> files)
+        {
+            foreach (var file in files)
+            {
+                Entities.RemoveAll(a => a.PartitionPath == file.FullName);
+                FileTimestamps.Remove(file.FullName);
             }
         }
 
+        /// <summary>
+        /// Saves what is currently inside database, RefreshData uses autosave by default
+        /// </summary>
         public void SaveDatabase()
         {
             SaveDatabase(Entities, FileTimestamps);
@@ -97,28 +170,5 @@ namespace Dice.Frostbite.Framework
             File.WriteAllText(path, output);
         }
 
-        private void UpdateDirtyInstances(IEnumerable<FileInfo> dirtyFiles)
-        {
-            var timestamps = DbxUtils.GetFileTimestamps(dirtyFiles);
-            var partitions = DbxUtils.ParseFiles(dirtyFiles);
-            var instances = DbxUtils.CreateInstances(partitions);
-
-            //remove all entries referred to by a dirty file
-            bool notEmpty = Entities.Count > 0 || FileTimestamps.Count > 0;
-            if (notEmpty)
-            {
-                foreach (var file in dirtyFiles)
-                {
-                    Entities.RemoveAll(a => a.PartitionPath == file.FullName);
-                    FileTimestamps.Remove(file.FullName);
-                }
-            }
-
-            //add dirty entries to database
-            Entities.AddRange(DbxUtils.GetEntities(instances));
-            FileTimestamps = FileTimestamps.Concat(timestamps).ToDictionary(x => x.Key, x => x.Value); //assumes there are no duplicate keys
-            EntityTypes = DbxUtils.GetUniqueAssetTypes(Entities);
-        }
-
-    }
+    }    
 }

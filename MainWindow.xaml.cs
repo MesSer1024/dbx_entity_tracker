@@ -160,7 +160,7 @@ namespace DbxEntityTracker
             }
 
             var item = _references.SelectedItem as DbxUtils.AssetInstance;
-            _infoPanel.Text = DbxUtils.GetInfoTextForAsset(item);
+            _infoPanel.Text = DbxUtils.GetAssetDescription(item);
         }
 
         private void _textFilter_TextChanged(object sender, TextChangedEventArgs e)

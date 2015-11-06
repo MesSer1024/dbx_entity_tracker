@@ -51,7 +51,7 @@ namespace Dice.Frostbite.Framework
             var sorted = files.OrderByDescending(a => a.Length).ToList();
             Console.WriteLine("---Sorted {0} Files by size --- time: {1}ms", files.Length, GetMillisecondsSinceStart(start));
 
-            var partitions = DbxUtils.ParseFiles(sorted);
+            var partitions = DbxUtils.ParseDbxFiles(sorted);
             Console.WriteLine("---Parsed {0} partitions from dbx-files --- time: {1}ms", partitions.Count, GetMillisecondsSinceStart(start));
 
             var instances = DbxUtils.CreateInstances(partitions);

@@ -13,7 +13,6 @@ namespace Dice.Frostbite.Framework
         {
             public string Filepath { get; set; }
             public string PartitionGuid { get; set; }
-            public long LastParsed { get; set; }
 
             public List<int> InstanceLineNumbers { get; private set; }
             public List<string> InstanceTypes { get; private set; }
@@ -36,6 +35,12 @@ namespace Dice.Frostbite.Framework
             public string PartitionGuid { get; set; }
             public string PartitionPath { get; set; }
             public string PartitionName { get { return GetPartitionShortName(PartitionPath); } }
+
+            private static string GetPartitionShortName(string name)
+            {
+                int idx = name.LastIndexOf("\\") + 1;
+                return name.Substring(idx, name.Length - idx - 4); //remove ".dbx" as well
+            }
         }
 
         public static FileInfo[] GetFiles(string rootFolder, string fileType = "dbx")
@@ -44,24 +49,26 @@ namespace Dice.Frostbite.Framework
             return dir.GetFiles("*." + fileType, SearchOption.AllDirectories);
         }
 
-        public static List<DbxUtils.PartitionData> ParseFiles(IEnumerable<FileInfo> dbxFiles)
+        /// <summary>
+        /// Multi-Threaded raw-text-search for locating all Instances (asset-type & asset-guid) inside a partition/dbxFile
+        /// Uses ParseDbxFile(...) internally
+        /// </summary>
+        /// <param name="dbxFiles">unmodified by code</param>
+        /// <returns>Contains raw-text-search-data related to all instances that exists in all partitions</returns>
+        public static List<DbxUtils.PartitionData> ParseDbxFiles(IEnumerable<FileInfo> dbxFiles)
         {
-            dbxFiles = dbxFiles.OrderByDescending(a => a.Length).ToList();
+            var files = dbxFiles.OrderByDescending(a => a.Length).ToList();
             //#TODO: See if we get performance increase if we let 50% of threads read biggest files and 50% read smallest files
             var threadLock = new object();
             var partitions = new List<DbxUtils.PartitionData>();
             Parallel.ForEach(dbxFiles, (file, state) =>
             {
-                if (file.Exists)
+                var item = DbxUtils.ParseDbxFile(file);
+                if (item != null)
                 {
-                    var items = DbxUtils.ParseDbxFile(file);
-                    if (items.Count > 0)
+                    lock (threadLock)
                     {
-                        lock (threadLock)
-                        {
-                            partitions.AddRange(items);
-                        }
-
+                        partitions.Add(item);
                     }
                 }
             });
@@ -69,17 +76,24 @@ namespace Dice.Frostbite.Framework
             return partitions;
         }
 
-        public static List<PartitionData> ParseDbxFile(FileInfo file)
+        /// <summary>
+        /// Raw-text-searches for all instances inside a partition/dbxFile
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns>null or data, CreateInstances expects this format</returns>
+        public static PartitionData ParseDbxFile(FileInfo file)
         {
-            var collection = new List<PartitionData>();
-            var dbx_type_identifier = "type=\"";
-            var guid_length = 36;
+            if (!file.Exists)
+                return null;
+
+            const string dbx_type_identifier = "type=\"";
+            const int guid_length = 36;
+
             using (var sr = new StreamReader(file.FullName))
             {
                 var asset = new PartitionData()
                 {
                     Filepath = file.FullName,
-                    LastParsed = DateTime.Now.Ticks
                 };
 
                 int lineNumber = 0;
@@ -119,9 +133,9 @@ namespace Dice.Frostbite.Framework
                     }
                 }
                 if (valid)
-                    collection.Add(asset);
+                    return asset;
             }
-            return collection;
+            return null;
         }
 
         private static string findSubstring(string line, int startIdx, string endIdentifier)
@@ -130,17 +144,22 @@ namespace Dice.Frostbite.Framework
             return line.Substring(startIdx, endIdx - startIdx);
         }
 
-        public static string findSubstring(string source, string identifier, int count)
+        private static string findSubstring(string source, string identifier, int count)
         {
             var idx = source.IndexOf(identifier);
             return source.Substring(idx + identifier.Length, count);
         }
 
-        public static List<AssetInstance> CreateInstances(List<PartitionData> allItems)
+        /// <summary>
+        /// Create AssetInstances given PartitionData
+        /// </summary>
+        /// <param name="allItems">see ParseDbxFiles</param>
+        /// <returns>Unique instances for each instance located inside a PartitionData</returns>
+        public static List<AssetInstance> CreateInstances(List<PartitionData> partitions)
         {
             List<AssetInstance> instances = new List<AssetInstance>();
 
-            foreach (var partition in allItems)
+            foreach (var partition in partitions)
             {
                 for (int i = 0; i < partition.InstanceGuids.Count; i++)
                 {
@@ -158,6 +177,24 @@ namespace Dice.Frostbite.Framework
             return instances;
         }
 
+        /// <summary>
+        /// Filters all instances given 'identifier' and orders them by PartitionName
+        /// </summary>
+        /// <param name="instances"></param>
+        /// <param name="identifier"></param>
+        /// <returns></returns>
+        public static List<DbxUtils.AssetInstance> GetEntities(List<DbxUtils.AssetInstance> instances, string identifier = "EntityData")
+        {
+            var items = instances.FindAll(a => a.AssetType.Contains(identifier));
+            items.OrderBy(a => a.PartitionName);
+            return items.ToList();
+        }
+
+        /// <summary>
+        /// Filters all instances by unique instances.AssetTypes & then sorts them alphabetically
+        /// </summary>
+        /// <param name="instances"></param>
+        /// <returns></returns>
         public static List<string> GetUniqueAssetTypes(List<AssetInstance> instances)
         {
             var foo = from entity in instances
@@ -167,7 +204,12 @@ namespace Dice.Frostbite.Framework
             return foo.Distinct().ToList();
         }
 
-        public static string GetInfoTextForAsset(DbxUtils.AssetInstance asset)
+        /// <summary>
+        /// Describing an AssetInstance in a UI-friendly manner
+        /// </summary>
+        /// <param name="asset"></param>
+        /// <returns></returns>
+        public static string GetAssetDescription(DbxUtils.AssetInstance asset)
         {
             var sb = new StringBuilder();
             sb.AppendLine("PartitionInfo:");
@@ -177,27 +219,35 @@ namespace Dice.Frostbite.Framework
             sb.AppendLine("\nAssetInfo:");
             sb.AppendLine(String.Format("\tGUID: {0}", asset.Guid));
             sb.AppendLine(String.Format("\tAssetType: {0}", asset.AssetType));
+            sb.AppendLine("\nFrosted Hyperlink:");
+            sb.AppendLine(String.Format("\tFrosted://{0};@{1}/{2}", "", asset.PartitionGuid, asset.Guid));
 
             return sb.ToString();
         }
 
-        public static List<DbxUtils.AssetInstance> GetEntities(List<DbxUtils.AssetInstance> instances, string identifier = "EntityData")
-        {
-            var items = instances.FindAll(a => a.AssetType.Contains(identifier));
-            items.OrderBy(a => a.PartitionName);
-            return items.ToList();
-        }
-
+        /// <summary>
+        /// Generate a collection with file.Fullename & file.LastModified
+        /// </summary>
+        /// <param name="files"></param>
+        /// <returns></returns>
         public static Dictionary<string, long> GetFileTimestamps(IEnumerable<FileInfo> files)
         {
             var output = new Dictionary<string, long>();
             foreach (var file in files)
             {
+                if (!file.Exists)
+                    continue;
                 output.Add(file.FullName, file.LastWriteTime.Ticks);
             }
             return output;
         }
 
+        /// <summary>
+        /// Generate a collection of all files that have been modified when compared against fileTimestamps
+        /// </summary>
+        /// <param name="files">potentially modified files</param>
+        /// <param name="fileTimestamps">FullName/LastModified, see GetFileTimestamps</param>
+        /// <returns></returns>
         public static List<FileInfo> GetDirtyFiles(FileInfo[] files, Dictionary<string, long> fileTimestamps)
         {
             var output = new List<FileInfo>();
@@ -213,10 +263,22 @@ namespace Dice.Frostbite.Framework
             return output;
         }
 
-        private static string GetPartitionShortName(string name)
-        {
-            int idx = name.LastIndexOf("\\") + 1;
-            return name.Substring(idx, name.Length - idx - 4); //remove ".dbx" as well
+        /// <summary>
+        /// Get entries that exist in database but does no longer have a dbx-file that resides in 'allFiles'
+        /// </summary>
+        /// <param name="allFiles">All DBX-files that should reside in collection</param>
+        /// <param name="fileTimestamps">All files that have been parsed and what version that was parsed</param>
+        /// <returns></returns>
+        public static List<FileInfo> GetDeletedFiles(FileInfo[] allFiles, Dictionary<string, long> fileTimestamps) {
+            var missingFiles = fileTimestamps.Keys.Except(from file in allFiles select file.FullName);
+            var deleted = new List<FileInfo>();
+            foreach (var file in missingFiles)
+            {
+                deleted.Add(new FileInfo(file));
+            }
+            Console.WriteLine("Deleted files = {0}", deleted.Count);
+            return deleted;
         }
+
     }
 }
