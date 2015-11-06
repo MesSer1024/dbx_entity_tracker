@@ -80,14 +80,7 @@ namespace Dice.Frostbite.Framework
                 FileTimestamps = load.FileTimestamps;
                 State = DatabaseState.Populated;
                 if (refreshDatabase)
-                    try
-                {
                     RefreshDatabase(true);
-                } catch(Exception e)
-                    {
-                        Console.WriteLine("Exception caught: {0}", e.ToString());
-
-                    }
             }
             else
             {
