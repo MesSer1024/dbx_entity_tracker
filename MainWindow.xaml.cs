@@ -16,9 +16,9 @@ using System.Windows.Shapes;
 using System.Collections.Concurrent;
 using Microsoft.Win32;
 using System.Windows.Threading;
-using Dice.Frostbite.Framework;
 using System.Threading;
 using System.Diagnostics;
+using Extension.InstanceTracker.InstanceTrackerEditor;
 
 namespace DbxEntityTracker
 {
