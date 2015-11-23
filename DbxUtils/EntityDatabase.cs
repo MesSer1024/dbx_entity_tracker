@@ -5,11 +5,12 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 
-namespace Dice.Frostbite.Framework
+namespace Extension.InstanceTracker.InstanceTrackerEditor
 {
     public class EntityDatabase
-{   
+    {
         #region Private Classes/Fields/Properties
         private class save_data
         {
@@ -17,7 +18,7 @@ namespace Dice.Frostbite.Framework
             public Dictionary<string, long> FileTimestamps { get; set; }
         }
 
-        private const string SAVE_FILE = "./state/instance_db/_lastSave_v0.et";
+        private const string SAVE_FILE = "./instance_db/_lastSave_v0.et";
         private static string _root = "D:\\dice\\ws\\ws\\FutureData\\Source";
         /// <summary>
         /// (Dictionary key=file.FullName, value=file.LastWriteTime.Ticks)
@@ -29,6 +30,7 @@ namespace Dice.Frostbite.Framework
         public enum DatabaseState
         {
             Empty,
+            ParsingInProgress,
             Populated,
         }
 
@@ -41,7 +43,7 @@ namespace Dice.Frostbite.Framework
             set { _root = value; }
         }
 
-
+        public Action<Extension.InstanceTracker.InstanceTrackerEditor.DbxUtils.ParsingProgress> ProgressCb { get; set; }
         public EntityDatabase()
         {
             ResetDatabase();
@@ -70,17 +72,20 @@ namespace Dice.Frostbite.Framework
         /// <summary>
         /// Loads a previously saved database, should be preceded by CanLoadDatabase to avoid Exception
         /// </summary>
-        public void LoadDatabase(bool refreshDatabase=true)
+        public void LoadDatabase(bool refreshDatabase = true)
         {
+            State = DatabaseState.ParsingInProgress;
             if (CanLoadDatabase())
             {
                 var s = File.ReadAllText(SAVE_FILE);
                 var load = JsonConvert.DeserializeObject<save_data>(s);
                 Entities = load.Entities;
                 FileTimestamps = load.FileTimestamps;
-                State = DatabaseState.Populated;
                 if (refreshDatabase)
                     RefreshDatabase(true);
+                if (EntityTypes.Count == 0)
+                    EntityTypes = DbxUtils.GetUniqueAssetTypes(Entities);
+                State = DatabaseState.Populated;
             }
             else
             {
@@ -93,6 +98,7 @@ namespace Dice.Frostbite.Framework
         /// </summary>
         public void RefreshDatabase(bool save = true)
         {
+            State = DatabaseState.ParsingInProgress;
             if (!Directory.Exists(RootPath))
                 throw new Exception(String.Format("Folder \"{0}\" does not exist", RootPath));
             var allFiles = DbxUtils.GetFiles(RootPath);
@@ -120,7 +126,7 @@ namespace Dice.Frostbite.Framework
 
             //add dirty entries to database
             var timestamps = DbxUtils.GetFileTimestamps(dirtyFiles);
-            var partitions = DbxUtils.ParseDbxFiles(dirtyFiles);
+            var partitions = DbxUtils.ParseDbxFiles(dirtyFiles, ProgressCb);
             var instances = DbxUtils.CreateInstances(partitions);
 
             Entities.AddRange(DbxUtils.GetEntities(instances));
@@ -158,10 +164,37 @@ namespace Dice.Frostbite.Framework
             var output = JsonConvert.SerializeObject(save);
 
             var file = new FileInfo(path);
-            if (!file.Directory.Exists)
-                file.Directory.Create();
-            File.WriteAllText(path, output);
+
+            if (file.Exists && file.IsReadOnly)
+            {
+                showSaveError(String.Format("Your file {0} is write-protected", file.FullName));
+                return;
+            }
+
+            if (file.Directory.Exists && file.Directory.Attributes == FileAttributes.ReadOnly)
+            {
+                showSaveError(String.Format("Your directory {0} is write-protected", file.Directory.FullName));
+                return;
+            }
+
+            try
+            {
+                if (!file.Directory.Exists)
+                    file.Directory.Create();
+
+                File.WriteAllText(path, output);
+            }
+            catch (Exception e)
+            {
+                showSaveError(e.Message);
+            }
         }
 
-    }    
+        private void showSaveError(string msg)
+        {
+            //MessageBox.Show(msg);
+            Console.WriteLine(msg);
+        }
+
+    }
 }
