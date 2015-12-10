@@ -215,7 +215,7 @@ namespace DbxEntityTracker
 
         private void reset() {
             EntityDB = new EntityDatabase();
-            dbxRoot.Text = EntityDatabase.RootPath;
+            dbxRoot.Text = EntityDatabase.DbxRootFolder;
             _time.Content = "Loading";
 
             _content.Visibility = System.Windows.Visibility.Collapsed;

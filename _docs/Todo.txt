@@ -1,0 +1,13 @@
+Bugs:
+[x]	"state-files" are saved in AutoBuild-folder for content creators, whenever they sync this is nuked, should be saved somewhere else...
+[]	Opening a SoldierWeaponBlueprint should open it with "Object Editor" instead of frosted-default "GearEditor"
+[]	Seems like we sometime ends up with a 'tech hang' when loading a file, awikstrom had 10min delay on 'loading file'-screen
+		Unknown what causes this, some kind of issue with s_worker inside entity explorer.cs?
+
+Features:
+[]	Parse items when computer has been idle (to avoid initial delay of 5min)
+[]	Save/Serialize items with other technique than json (avoid crash when saving tons of things)
+[]	Improve UI
+[]	Implement tracking of usage and 'important stuff' to ease debugging, possible to show by pressing a view/menu or something (Debug output/Screen)
+[]	Possible to e-mail that debug-output by pressing a button
+

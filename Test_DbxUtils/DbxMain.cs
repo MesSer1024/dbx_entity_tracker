@@ -20,7 +20,7 @@ namespace Dice.Frostbite.Framework
             Info,
             Unknown,
             Exit,
-
+            Test,
         }
         private EntityDatabase _database;
         private Writer _writer;
@@ -86,11 +86,19 @@ namespace Dice.Frostbite.Framework
                 case Commands.Info:
                     WriteInfo(DateTime.Now);
                     break;
+                case Commands.Test:
+                    test();
+                    break;
                 case Commands.Unknown:
                 default:
                     Console.WriteLine("Unknown command, 'exit' to quit");
                     break;
             }
+        }
+
+        private void test()
+        {
+            _database.SaveDatabase();
         }
 
         private void List(string[] args)
