@@ -29,7 +29,7 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
 
         public class AssetInstance
         {
-            public string Guid { get; set; }
+            public string AssetGuid { get; set; }
             public string AssetType { get; set; }
 
             public string PartitionGuid { get; set; }
@@ -54,7 +54,7 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
                 ParsedFiles = new List<FileInfo>(filesToParse.Count);
             }
 
-            public void addAsParsed(FileInfo file)
+            public void SetParsedFile(FileInfo file)
             {
                 ParsedFiles.Add(file);
             }
@@ -70,7 +70,8 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
         /// Multi-Threaded raw-text-search for locating all Instances (asset-type & asset-guid) inside a partition/dbxFile
         /// Uses ParseDbxFile(...) internally
         /// </summary>
-        /// <param name="dbxFiles">unmodified by code</param>
+        /// <param name="dbxFiles">not modified by code</param>
+        /// <param name="progressCb">optional callback to receive info whenever a file is parsed</param>
         /// <returns>Contains raw-text-search-data related to all instances that exists in all partitions</returns>
         public static List<DbxUtils.PartitionData> ParseDbxFiles(IEnumerable<FileInfo> dbxFiles, Action<ParsingProgress> progressCb = null)
         {
@@ -92,8 +93,7 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
                         partitions.Add(item);
                         if (progressCb != null)
                         {
-                            //report progress once in a while...
-                            progress.addAsParsed(file);
+                            progress.SetParsedFile(file);
                             progressCb(progress);
                         }
                     }
@@ -137,7 +137,7 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
                             throw new Exception("Unable to locate primary instance within first 20 lines of dbx-file");
                         if (line.Contains("primaryInstance"))
                         {
-                            var partitionGuid = findSubstring(line, "guid=\"", guid_length);
+                            var partitionGuid = FindSubstring(line, "guid=\"", guid_length);
                             asset.PartitionGuid = partitionGuid;
                             primaryInstanceFound = true;
                         }
@@ -147,10 +147,10 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
                     if (startIdx >= 0)
                     {
                         //Given a line that looks like: <instance guid="5a5cdf29-50d5-44bd-9538-a08ba983872f" type="Entity.SchematicShortcutCommonData">
-                        //Extract the type-identifier: Entity.SchematicShortcutCommonData
-                        //Extract the guid: 5a5cdf29-50d5-44bd-9538-a08ba983872f
-                        var assetType = findSubstring(line, startIdx + dbx_type_identifier.Length, "\"");
-                        var guid = findSubstring(line, "guid=\"", guid_length);
+                            //Extract the type-identifier: Entity.SchematicShortcutCommonData
+                            //Extract the guid: 5a5cdf29-50d5-44bd-9538-a08ba983872f
+                        var assetType = FindSubstring(line, startIdx + dbx_type_identifier.Length, "\"");
+                        var guid = FindSubstring(line, "guid=\"", guid_length);
 
                         asset.InstanceLineNumbers.Add(lineNumber);
                         asset.InstanceTypes.Add(assetType);
@@ -165,13 +165,13 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
             return null;
         }
 
-        private static string findSubstring(string line, int startIdx, string endIdentifier)
+        private static string FindSubstring(string line, int startIdx, string endIdentifier)
         {
             var endIdx = line.IndexOf(endIdentifier, startIdx + 1);
             return line.Substring(startIdx, endIdx - startIdx);
         }
 
-        private static string findSubstring(string source, string identifier, int count)
+        private static string FindSubstring(string source, string identifier, int count)
         {
             var idx = source.IndexOf(identifier);
             return source.Substring(idx + identifier.Length, count);
@@ -193,7 +193,7 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
                     var instance = new AssetInstance()
                     {
                         AssetType = partition.InstanceTypes[i],
-                        Guid = partition.InstanceGuids[i],
+                        AssetGuid = partition.InstanceGuids[i],
                         PartitionGuid = partition.PartitionGuid,
                         PartitionPath = partition.Filepath
                     };
@@ -218,15 +218,15 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
         }
 
         /// <summary>
-        /// Filters all instances by unique instances.AssetTypes & then sorts them alphabetically
+        /// Filters all instances by unique instances.AssetTypes & sorts them alphabetically
         /// </summary>
         /// <param name="instances"></param>
         /// <returns></returns>
         public static List<string> GetUniqueAssetTypes(List<AssetInstance> instances)
         {
             var output = from entity in instances
-                         orderby entity.AssetType ascending
-                         select entity.AssetType;
+                      orderby entity.AssetType ascending
+                      select entity.AssetType;
 
             return output.Distinct().ToList();
         }
@@ -244,10 +244,10 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
             sb.AppendLine(String.Format("\tPartitionPath: {0}", asset.PartitionPath));
             sb.AppendLine(String.Format("\tPartitionGuid: {0}", asset.PartitionGuid));
             sb.AppendLine("\nAssetInfo:");
-            sb.AppendLine(String.Format("\tGUID: {0}", asset.Guid));
+            sb.AppendLine(String.Format("\tGUID: {0}", asset.AssetGuid));
             sb.AppendLine(String.Format("\tAssetType: {0}", asset.AssetType));
             sb.AppendLine("\nFrosted Hyperlink:");
-            sb.AppendLine(String.Format("\tFrosted://{0};@{1}/{2}", "", asset.PartitionGuid, asset.Guid));
+            sb.AppendLine(String.Format("\tFrosted://{0};@{1}/{2}", "", asset.PartitionGuid, asset.AssetGuid));
 
             return sb.ToString();
         }
@@ -296,8 +296,7 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
         /// <param name="allFiles">All DBX-files that should reside in collection</param>
         /// <param name="fileTimestamps">All files that have been parsed and what version that was parsed</param>
         /// <returns></returns>
-        public static List<FileInfo> GetDeletedFiles(FileInfo[] allFiles, Dictionary<string, long> fileTimestamps)
-        {
+        public static List<FileInfo> GetDeletedFiles(FileInfo[] allFiles, Dictionary<string, long> fileTimestamps) {
             var missingFiles = fileTimestamps.Keys.Except(from file in allFiles select file.FullName);
             var deleted = new List<FileInfo>();
             foreach (var file in missingFiles)

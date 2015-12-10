@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 
 namespace Dice.Frostbite.Framework
 {
-
     class DbxMain
     {
         enum Commands
@@ -24,10 +23,17 @@ namespace Dice.Frostbite.Framework
 
         }
         private EntityDatabase _database;
+        private Writer _writer;
 
         public DbxMain()
         {
             _database = new EntityDatabase();
+            _database.ProgressCb = onProgress;
+        }
+
+        private void onProgress(DbxUtils.ParsingProgress obj)
+        {
+            _writer.Progress(String.Format("Parsing files {0}/{1}", obj.ParsedFiles.Count, obj.AllFiles.Count));
         }
 
         public void execute()
@@ -115,9 +121,72 @@ namespace Dice.Frostbite.Framework
             return items.FirstOrDefault();
         }
 
+        private class Writer
+        {
+            private StringBuilder _errors;
+            private StringBuilder _idleTime;
+            private StringBuilder _progress;
+
+            private Dictionary<StringBuilder, int> _rowOffsets;
+
+            public void begin()
+            {
+                _errors = new StringBuilder();
+                _idleTime = new StringBuilder();
+                _progress = new StringBuilder();
+
+                _rowOffsets = new Dictionary<StringBuilder, int>();
+                _rowOffsets.Add(_progress, Console.CursorTop);
+                Console.WriteLine(_progress.ToString());
+
+                _rowOffsets.Add(_idleTime, Console.CursorTop);
+                Console.WriteLine(_idleTime.ToString());
+
+                _rowOffsets.Add(_errors, Console.CursorTop);
+                Console.WriteLine(_errors.ToString());
+            }
+
+            public void Error(string s)
+            {
+                _errors.AppendLine(s);
+                write();
+            }
+
+            public string GetIdleTime()
+            {
+                return String.Format("User has been idle for: {0:000,000}ms\n", checkIdleTime());
+            }
+
+            public void Progress(string s)
+            {
+                _progress.Clear();
+                _progress.AppendLine(s);
+                write();
+            }
+
+            private uint checkIdleTime()
+            {
+                return Win32API.GetIdleTime();
+            }
+
+            private void write()
+            {
+                Console.SetCursorPosition(0, _rowOffsets[_progress]);
+                Console.WriteLine(_progress.ToString());
+
+                Console.SetCursorPosition(0, _rowOffsets[_idleTime]);
+                Console.WriteLine(GetIdleTime());
+
+                Console.SetCursorPosition(0, _rowOffsets[_errors]);
+                Console.WriteLine(_errors.ToString());
+            }
+        }
+
         private void Parse()
         {
             Console.WriteLine("Parse");
+            _writer = new Writer();
+            _writer.begin();
             var start = DateTime.Now;
             _database.RefreshDatabase();
             WriteInfo(start);

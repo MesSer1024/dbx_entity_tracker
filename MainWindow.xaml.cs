@@ -193,7 +193,7 @@ namespace DbxEntityTracker
 
             //frostedLink.AppendFormat("frosted://{0};@{1}/{2}", AppSettings.DATABASE, getOwningGuid(allLines, dbx.FilePath), getInstanceGuid(allLines, dbx.LineNumber - 1));
             var frostedLink = new StringBuilder();
-            frostedLink.AppendFormat("frosted://{0};@{1}/{2}", "", asset.PartitionGuid, asset.Guid);
+            frostedLink.AppendFormat("frosted://{0};@{1}/{2}", "", asset.PartitionGuid, asset.AssetGuid);
             var sb = new StringBuilder(_infoPanel.Text);
             sb.AppendLine();
             sb.AppendLine("----------------------");

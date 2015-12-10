@@ -10,16 +10,16 @@ using System.Windows;
 namespace Extension.InstanceTracker.InstanceTrackerEditor
 {
     public class EntityDatabase
-    {
+{   
         #region Private Classes/Fields/Properties
-        private class save_data
+        private class SaveData
         {
             public List<DbxUtils.AssetInstance> Entities { get; set; }
             public Dictionary<string, long> FileTimestamps { get; set; }
         }
 
         private const string SAVE_FILE = "./instance_db/_lastSave_v0.et";
-        private static string _root = "D:\\dice\\ws\\ws\\FutureData\\Source";
+        private static string s_root = "D:\\dice\\ws\\ws\\FutureData\\Source";
         /// <summary>
         /// (Dictionary key=file.FullName, value=file.LastWriteTime.Ticks)
         /// </summary>
@@ -39,8 +39,8 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
 
         public static string RootPath
         {
-            get { return _root; }
-            set { _root = value; }
+            get { return s_root; }
+            set { s_root = value; }
         }
 
         public Action<Extension.InstanceTracker.InstanceTrackerEditor.DbxUtils.ParsingProgress> ProgressCb { get; set; }
@@ -72,13 +72,13 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
         /// <summary>
         /// Loads a previously saved database, should be preceded by CanLoadDatabase to avoid Exception
         /// </summary>
-        public void LoadDatabase(bool refreshDatabase = true)
+        public void LoadDatabase(bool refreshDatabase=true)
         {
             State = DatabaseState.ParsingInProgress;
             if (CanLoadDatabase())
             {
                 var s = File.ReadAllText(SAVE_FILE);
-                var load = JsonConvert.DeserializeObject<save_data>(s);
+                var load = JsonConvert.DeserializeObject<SaveData>(s);
                 Entities = load.Entities;
                 FileTimestamps = load.FileTimestamps;
                 if (refreshDatabase)
@@ -89,7 +89,7 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
             }
             else
             {
-                throw new Exception(String.Format("Unable to load \"{0}\"", SAVE_FILE));
+                ShowError(String.Format("Unable to load \"{0}\" \nMaybe the file is corrupt?", SAVE_FILE));
             }
         }
 
@@ -100,7 +100,7 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
         {
             State = DatabaseState.ParsingInProgress;
             if (!Directory.Exists(RootPath))
-                throw new Exception(String.Format("Folder \"{0}\" does not exist", RootPath));
+                ShowError(String.Format("Folder \"{0}\" does not exist, this is the root path given by FrostEd", RootPath));
             var allFiles = DbxUtils.GetFiles(RootPath);
 
             var deletedFiles = DbxUtils.GetDeletedFiles(allFiles, FileTimestamps);
@@ -155,7 +155,7 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
         private void SaveDatabase(List<DbxUtils.AssetInstance> entities, Dictionary<string, long> fileTimestamps)
         {
             var path = SAVE_FILE;
-            var save = new save_data()
+            var save = new SaveData()
             {
                 Entities = entities,
                 FileTimestamps = fileTimestamps,
@@ -167,13 +167,13 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
 
             if (file.Exists && file.IsReadOnly)
             {
-                showSaveError(String.Format("Your file {0} is write-protected", file.FullName));
+                ShowError(String.Format("Your file {0} is write-protected", file.FullName));
                 return;
             }
 
             if (file.Directory.Exists && file.Directory.Attributes == FileAttributes.ReadOnly)
             {
-                showSaveError(String.Format("Your directory {0} is write-protected", file.Directory.FullName));
+                ShowError(String.Format("Your directory {0} is write-protected", file.Directory.FullName));
                 return;
             }
 
@@ -184,17 +184,17 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
 
                 File.WriteAllText(path, output);
             }
-            catch (Exception e)
+            catch(Exception e)
             {
-                showSaveError(e.Message);
+                ShowError(String.Format("Unable to write to file {0}, error\n:{1}", file.FullName, e.Message));
             }
         }
 
-        private void showSaveError(string msg)
+        private void ShowError(string msg)
         {
-            //MessageBox.Show(msg);
             Console.WriteLine(msg);
+            //MessageBox.Show(msg);
         }
 
-    }
+    }    
 }

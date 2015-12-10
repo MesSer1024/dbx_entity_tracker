@@ -7,7 +7,7 @@
     <ProjectGuid>{ADCC29FF-0EB3-4F45-BEE1-D541D5C57A31}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Dice.Frostbite.Framework</RootNamespace>
+    <RootNamespace>Extension.InstanceTracker.InstanceTrackerEditor</RootNamespace>
     <AssemblyName>fb_dbx</AssemblyName>
     <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -41,6 +41,9 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Data.SQLite">
+      <HintPath>..\..\[include]\System.Data.SQLite.dll</HintPath>
+    </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -51,6 +54,8 @@
     <Compile Include="DbxUtils.cs" />
     <Compile Include="EntityDatabase.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SQLiteUtils.cs" />
+    <Compile Include="Win32API.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
