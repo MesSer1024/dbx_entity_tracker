@@ -19,6 +19,7 @@ using System.Windows.Threading;
 using System.Threading;
 using System.Diagnostics;
 using Extension.InstanceTracker.InstanceTrackerEditor;
+using System.Net.Mail;
 
 namespace DbxEntityTracker
 {
@@ -28,6 +29,7 @@ namespace DbxEntityTracker
     public partial class MainWindow : Window
     {
         private EntityDatabase EntityDB;
+        private ViewMode _viewMode;
 
         public MainWindow()
         {
@@ -182,11 +184,6 @@ namespace DbxEntityTracker
             _entityTypes.Items.Refresh();
         }
 
-        private void onNewSearchClick(object sender, RoutedEventArgs e)
-        {
-            reset();
-        }
-
         private string doGenerateFrostedLink()
         {
             var asset = _references.SelectedItem as DbxUtils.AssetInstance;
@@ -221,6 +218,53 @@ namespace DbxEntityTracker
             _content.Visibility = System.Windows.Visibility.Collapsed;
             SetLoadingVisibility(false);
             _parseOptions.Visibility = System.Windows.Visibility.Visible;
+            SetViewMode(ViewMode.Application);
+        }
+
+        private enum ViewMode
+        {
+            Application,
+            Debug,
+            About,
+        }
+
+        private void onViewApplication(object sender, RoutedEventArgs e)
+        {
+            SetViewMode(ViewMode.Application);
+        }
+
+        private void onViewDebug(object sender, RoutedEventArgs e)
+        {
+            SetViewMode(ViewMode.Debug);
+        }
+
+        private void onViewAbout(object sender, RoutedEventArgs e)
+        {
+            SetViewMode(ViewMode.About);
+        }
+
+        private void SetViewMode(ViewMode viewMode)
+        {
+            if (_viewMode == viewMode)
+                return;
+
+            _viewMode = viewMode;
+            _menuDebug.IsEnabled = viewMode != ViewMode.Debug;
+            _menuAbout.IsEnabled = viewMode != ViewMode.About;
+            _menuApplication.IsEnabled = viewMode != ViewMode.Application;
+
+            _debugView.Visibility = viewMode == ViewMode.Debug ? System.Windows.Visibility.Visible : Visibility.Collapsed;
+            _aboutView.Visibility = viewMode == ViewMode.About ? System.Windows.Visibility.Visible : Visibility.Collapsed;
+            _applicationView.Visibility = viewMode == ViewMode.Application ? System.Windows.Visibility.Visible : Visibility.Collapsed;
+
+            if (viewMode == ViewMode.Debug)
+            {
+                _debugText.Text = InstanceTrackerAPI.GetLog();
+            }
+            else if (viewMode == ViewMode.About)
+            {
+                _aboutText.Text = InstanceTrackerAPI.GetAboutText();
+            }
         }
     }
 }

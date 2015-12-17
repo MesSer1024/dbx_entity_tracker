@@ -6,91 +6,127 @@
         <Grid.Resources>
             <SolidColorBrush x:Key="selectedBG" Color="#ececec" />
         </Grid.Resources>
-        <DockPanel>
+        <DockPanel HorizontalAlignment="Stretch">
             <Menu DockPanel.Dock="Top" Name="_menu">
-                <MenuItem Header="File">
-                    <MenuItem Header="New Search" Click="onNewSearchClick" />
+                <MenuItem Header="View">
+                    <MenuItem Name="_menuApplication" Header="Application" IsEnabled="False" Click="onViewApplication" />
+                    <MenuItem Name="_menuDebug" Header="DebugOutput" IsEnabled="True" Click="onViewDebug" />
+                    <MenuItem Name="_menuAbout" Header="About" IsEnabled="True" Click="onViewAbout" />
                 </MenuItem>
             </Menu>
-            <DockPanel Name="_loading" MinWidth="600" MinHeight="300" Visibility="Collapsed">
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Label Name="_loadingText" Content="" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    <Label Name="_time" Content="Loading" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </StackPanel>
+            <DockPanel Name="_aboutView" Visibility="Collapsed" MinWidth="1150" Margin="26">
+                <Label DockPanel.Dock="Top" Content="About Instance Tracker" FontSize="32" />
+                <TextBox Name="_aboutText" />
             </DockPanel>
-            <DockPanel Name="_parseOptions" MinWidth="500">
-                <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}">
-                    <Label>DBX Root:</Label>
-                    <TextBox Name="dbxRoot" MinWidth="250" VerticalContentAlignment="Center" />
+            <Grid Name="_debugView" Visibility="Collapsed" MinWidth="1150">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <DockPanel Grid.RowSpan="9" Grid.ColumnSpan="9" Margin="26">
+                    <Label DockPanel.Dock="Top" Content="Debug output:" />
+                    <TextBox Background="DarkGray" Name="_debugText" Text="Some debug output" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" IsReadOnly="True" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Disabled" />
                 </DockPanel>
-                <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}"/>
-                <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}"/>
-                <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}">
-                    <Button Name="parseButton"  Padding="6" Margin="10" DockPanel.Dock="Left" Click="onPopulateClick">Parse Files</Button>
-                    <Button Name="loadButton"  Padding="6" Margin="10" DockPanel.Dock="Left" Click="onLoad">Load Data</Button>
+            </Grid>
+            <DockPanel Name="_applicationView" Visibility="Visible">
+                <DockPanel Name="_loading" MinWidth="600" MinHeight="300" Visibility="Collapsed">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Label Name="_loadingText" Content="" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <Label Name="_time" Content="Loading" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </StackPanel>
+                </DockPanel>
+                <DockPanel Name="_parseOptions" MinWidth="500">
+                    <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}">
+                        <Label>DBX Root:</Label>
+                        <TextBox Name="dbxRoot" MinWidth="250" VerticalContentAlignment="Center" />
+                    </DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}"/>
+                    <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}"/>
+                    <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}">
+                        <Button Name="parseButton"  Padding="6" Margin="10" DockPanel.Dock="Left" Click="onPopulateClick">Parse Files</Button>
+                        <Button Name="loadButton"  Padding="6" Margin="10" DockPanel.Dock="Left" Click="onLoad">Load Data</Button>
+                        <Label />
+                    </DockPanel>
                     <Label />
                 </DockPanel>
-                <Label />
-            </DockPanel>
-            <DockPanel Name="_content" Visibility="Visible">
-                <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}" Visibility="Collapsed">
-                    <Label>Avalanche(?) Database ID:</Label>
-                    <TextBox Name="_database" />
-                </DockPanel>
-                <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}">
-                    <Label>Filter:</Label>
-                    <TextBox Name="_textFilter" TextChanged="_textFilter_TextChanged" />
-                </DockPanel>
-                <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_entityTypes" SelectionChanged="_entities_SelectionChanged">
-                    <ListBox.Resources>
-                        <Style TargetType="{x:Type ListBoxItem}">
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="ListBoxItem">
-                                        <Border Name="Border" SnapsToDevicePixels="true">
-                                            <ContentPresenter />
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsSelected" Value="true">
-                                                <Setter TargetName="Border" Property="Background"
+                <DockPanel Name="_content" Visibility="Visible">
+                    <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}" Visibility="Collapsed">
+                        <Label>Avalanche(?) Database ID:</Label>
+                        <TextBox Name="_database" />
+                    </DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Background="{StaticResource selectedBG}">
+                        <Label>Filter:</Label>
+                        <TextBox Name="_textFilter" TextChanged="_textFilter_TextChanged" />
+                    </DockPanel>
+                    <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_entityTypes" SelectionChanged="_entities_SelectionChanged">
+                        <ListBox.Resources>
+                            <Style TargetType="{x:Type ListBoxItem}">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border Name="Border" SnapsToDevicePixels="true">
+                                                <ContentPresenter />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsSelected" Value="true">
+                                                    <Setter TargetName="Border" Property="Background"
                                             Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </ListBox.Resources>
-                </ListBox>
-                <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_references" SelectionChanged="_references_SelectionChanged" DisplayMemberPath="PartitionName">
-                    <ListBox.Resources>
-                        <ContextMenu x:Key="MyContextMenu">
-                            <MenuItem Header="Open in FrostEd" Click="onOpenInFrosted" />
-                        </ContextMenu>
-                        <Style TargetType="{x:Type ListBoxItem}">
-                            <Setter Property="ContextMenu" Value="{StaticResource MyContextMenu}"/>
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="ListBoxItem">
-                                        <Border Name="Border" SnapsToDevicePixels="true">
-                                            <ContentPresenter />
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsSelected" Value="true">
-                                                <Setter TargetName="Border" Property="Background"
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.Resources>
+                    </ListBox>
+                    <ListBox MinWidth="350" DockPanel.Dock="Left" Name="_references" SelectionChanged="_references_SelectionChanged" DisplayMemberPath="PartitionName">
+                        <ListBox.Resources>
+                            <ContextMenu x:Key="MyContextMenu">
+                                <MenuItem Header="Open in FrostEd" Click="onOpenInFrosted" />
+                            </ContextMenu>
+                            <Style TargetType="{x:Type ListBoxItem}">
+                                <Setter Property="ContextMenu" Value="{StaticResource MyContextMenu}"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border Name="Border" SnapsToDevicePixels="true">
+                                                <ContentPresenter />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsSelected" Value="true">
+                                                    <Setter TargetName="Border" Property="Background"
                                             Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
 
-                    </ListBox.Resources>
-                </ListBox>
-                <DockPanel DockPanel.Dock="Right" Margin="30,0,0,0">
-                    <Label Content="Info Panel:" DockPanel.Dock="Top" />
-                    <TextBox Name="_infoPanel" MinWidth="250" IsReadOnly="True" HorizontalContentAlignment="Left" />
+                        </ListBox.Resources>
+                    </ListBox>
+                    <DockPanel DockPanel.Dock="Right" Margin="30,0,0,0">
+                        <Label Content="Info Panel:" DockPanel.Dock="Top" />
+                        <TextBox Name="_infoPanel" MinWidth="250" IsReadOnly="True" HorizontalContentAlignment="Left" />
+                    </DockPanel>
                 </DockPanel>
             </DockPanel>
         </DockPanel>

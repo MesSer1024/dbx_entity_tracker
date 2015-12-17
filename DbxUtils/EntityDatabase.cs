@@ -26,9 +26,9 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
         /// </summary>
         private Dictionary<string, long> FileTimestamps { get; set; }
 
-        private static string GetSaveFilePath(string folder, int version)
+        private static string GetSaveFilePath(string folder, int saveVersion)
         {
-            var fileName = string.Format("instanceTracker_v{0}", version);
+            var fileName = string.Format("instanceTracker_v{0}", saveVersion);
             var path = Path.Combine(folder, fileName);
             return path;
         }
@@ -68,6 +68,7 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
         /// </summary>
         public void ResetDatabase()
         {
+            Logger.Info(Action.Reset);
             Entities = new List<DbxUtils.AssetInstance>();
             EntityTypes = new List<string>();
             FileTimestamps = new Dictionary<string, long>();
@@ -84,13 +85,14 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
         }
 
         /// <summary>
-        /// Loads a previously saved database, should be preceded by CanLoadDatabase to avoid Exception
+        /// Loads a previously saved database, should be preceded by CanLoadDatabase to avoid error
         /// </summary>
         public void LoadDatabase(bool refreshDatabase = true)
         {
+            Logger.Info(Action.Load, String.Format("[START] refresh={0}", refreshDatabase));
             State = DatabaseState.ParsingInProgress;
             var path = GetSaveFilePath(StateRootFolder, s_version);
-            if (CanLoadDatabase())
+            try
             {
                 var s = File.ReadAllText(path);
                 var load = JsonConvert.DeserializeObject<SaveData>(s);
@@ -102,10 +104,12 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
                     EntityTypes = DbxUtils.GetUniqueAssetTypes(Entities);
                 State = DatabaseState.Populated;
             }
-            else
+            catch (Exception e)
             {
-                ShowError(String.Format("Unable to load \"{0}\" \nMaybe the file is corrupt?", path));
+                State = DatabaseState.Empty;
+                ShowError(String.Format("Unable to load \"{0}\" is file corrupt? (Delete the file and open entity tracker-window again)\n\n Exception:\n{1}", path, e.Message));
             }
+            Logger.Info(Action.Load, String.Format("[END] Entities={0}, Types={1}, FileTimeStamps={2}", Entities.Count, EntityTypes.Count, FileTimestamps.Count));
         }
 
         /// <summary>
@@ -113,15 +117,22 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
         /// </summary>
         public void RefreshDatabase(bool save = true)
         {
+            Logger.Info(Action.Refresh, String.Format("[START] save={0}", save));
             State = DatabaseState.ParsingInProgress;
             if (!Directory.Exists(DbxRootFolder))
+            {
                 ShowError(String.Format("Folder \"{0}\" does not exist, this is the root path given by FrostEd", DbxRootFolder));
+                return;
+            }
+            
             var allFiles = DbxUtils.GetFiles(DbxRootFolder);
-
+            Logger.Info(Action.Refresh, String.Format("all files={0}", allFiles.Length));
             var deletedFiles = DbxUtils.GetDeletedFiles(allFiles, FileTimestamps);
+            Logger.Info(Action.Refresh, String.Format("deleted files={0}", deletedFiles.Count));
             RemoveEntriesByFilePath(deletedFiles);
 
             var dirtyFiles = DbxUtils.GetDirtyFiles(allFiles, FileTimestamps);
+            Logger.Info(Action.Refresh, String.Format("dirty files={0}", dirtyFiles.Count));
             UpdateDirtyInstances(dirtyFiles);
 
             //save changes
@@ -129,6 +140,7 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
             if (save && modified)
                 SaveDatabase(Entities, FileTimestamps);
             State = DatabaseState.Populated;
+            Logger.Info(Action.Refresh, String.Format("[END] Entities={0}, Types={1}, FileTimestamps={2}", Entities.Count, EntityTypes.Count, FileTimestamps.Count));
         }
 
         private void UpdateDirtyInstances(List<FileInfo> dirtyFiles)
@@ -152,11 +164,25 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
 
         private void RemoveEntriesByFilePath(List<FileInfo> files)
         {
-            foreach (var file in files)
+            if (files.Count == 0)
+                return;
+            Logger.Info(Action.Remove, String.Format("[BEGIN] files={0}, Entities={1}, FileTimestamps={2}", files.Count, Entities.Count, FileTimestamps.Count));
+            var sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+
+            var lookup = files.ToDictionary(a => a.FullName);
+            var newEntities = new List<DbxUtils.AssetInstance>();
+            foreach (var entity in Entities)
             {
-                Entities.RemoveAll(a => a.PartitionPath == file.FullName);
-                FileTimestamps.Remove(file.FullName);
+                if (!lookup.ContainsKey(entity.PartitionPath))
+                    newEntities.Add(entity);
             }
+
+            Entities = newEntities;
+            files.ForEach(a => FileTimestamps.Remove(a.FullName));
+
+            sw.Stop();
+            Logger.Info(Action.Remove, String.Format("[END] Entities={0}, FileTimestamps={1}, time={2}ms", Entities.Count, FileTimestamps.Count, sw.ElapsedMilliseconds));
         }
 
         /// <summary>
@@ -169,7 +195,8 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
 
         private void SaveDatabase(List<DbxUtils.AssetInstance> entities, Dictionary<string, long> fileTimestamps)
         {
-            var path = GetSaveFilePath(StateRootFolder, 0);
+            var path = GetSaveFilePath(StateRootFolder, s_version);
+            Logger.Info(Action.Save, path);
             var save = new SaveData()
             {
                 Entities = entities,
@@ -207,6 +234,7 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
 
         private void ShowError(string msg)
         {
+            Logger.Error(msg);
             Console.WriteLine(msg);
             //MessageBox.Show(msg);
         }

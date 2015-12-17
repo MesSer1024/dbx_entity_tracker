@@ -53,6 +53,8 @@
   <ItemGroup>
     <Compile Include="DbxUtils.cs" />
     <Compile Include="EntityDatabase.cs" />
+    <Compile Include="InstanceTrackerAPI.cs" />
+    <Compile Include="Logger.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SQLiteUtils.cs" />
     <Compile Include="Win32API.cs" />

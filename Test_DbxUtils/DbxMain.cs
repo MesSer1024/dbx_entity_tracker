@@ -21,6 +21,7 @@ namespace Dice.Frostbite.Framework
             Unknown,
             Exit,
             Test,
+            Log,
         }
         private EntityDatabase _database;
         private Writer _writer;
@@ -88,6 +89,9 @@ namespace Dice.Frostbite.Framework
                     break;
                 case Commands.Test:
                     test();
+                    break;
+                case Commands.Log:
+                    Console.WriteLine(InstanceTrackerAPI.GetLog());
                     break;
                 case Commands.Unknown:
                 default:
@@ -174,7 +178,8 @@ namespace Dice.Frostbite.Framework
 
             private uint checkIdleTime()
             {
-                return Win32API.GetIdleTime();
+                return 0;
+                //return Win32API.GetIdleTime();
             }
 
             private void write()

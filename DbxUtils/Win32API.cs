@@ -13,7 +13,7 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
         public uint dwTime;
     }
 
-    public class Win32API
+    internal class Win32API
     {
         /// <summary>
         /// Summary description for Win32.
