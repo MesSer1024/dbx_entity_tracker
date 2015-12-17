@@ -34,6 +34,10 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
         }
 
         private static List<Data> s_logEntries = new List<Data>();
+        public static int GetLogEntriesCount()
+        {
+            return s_logEntries.Count;
+        }
         
         internal static StringBuilder GetLog()
         {

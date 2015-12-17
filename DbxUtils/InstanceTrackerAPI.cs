@@ -14,6 +14,11 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
             Logger.ClearLogEntries();
         }
 
+        public static int GetLogEntriesCount()
+        {
+            return Logger.GetLogEntriesCount();
+        }
+
         public static String GetLog()
         {
             var sb = new StringBuilder();
