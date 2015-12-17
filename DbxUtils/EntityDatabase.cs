@@ -164,8 +164,9 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
 
         private void RemoveEntriesByFilePath(List<FileInfo> files)
         {
-            if (files.Count == 0)
+            if (files.Count == 0 || (Entities.Count == 0 && FileTimestamps.Count == 0))
                 return;
+
             Logger.Info(Action.Remove, String.Format("[BEGIN] files={0}, Entities={1}, FileTimestamps={2}", files.Count, Entities.Count, FileTimestamps.Count));
             var sw = new System.Diagnostics.Stopwatch();
             sw.Start();
@@ -235,8 +236,8 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
         private void ShowError(string msg)
         {
             Logger.Error(msg);
-            Console.WriteLine(msg);
             //MessageBox.Show(msg);
+			Console.WriteLine(msg);
         }
 
     }

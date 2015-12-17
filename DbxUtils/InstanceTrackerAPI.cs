@@ -17,6 +17,7 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
         public static String GetLog()
         {
             var sb = new StringBuilder();
+            sb.AppendLine("For any issues, please send me an e-mail");
             sb.AppendLine(GetDevText());
             sb.AppendLine("--------------------------------");
             sb.AppendLine("User: " + Environment.UserName);
@@ -28,12 +29,12 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
 
         public static string GetLastVersionDate()
         {
-            return "2015-12-10";
+            return "2015-12-17";
         }
 
         public static string GetLastVersion()
         {
-            return "130";
+            return "131";
         }
 
         private static string GetDevText()

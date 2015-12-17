@@ -161,6 +161,8 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
                 }
                 if (valid)
                     return asset;
+                else
+                    Logger.Error(String.Format("File \"{0}\" does not contain valid dbx-data", file.FullName));
             }
             return null;
         }
@@ -244,7 +246,7 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
             sb.AppendLine(String.Format("\tPartitionPath: {0}", asset.PartitionPath));
             sb.AppendLine(String.Format("\tPartitionGuid: {0}", asset.PartitionGuid));
             sb.AppendLine("\nAssetInfo:");
-            sb.AppendLine(String.Format("\tGUID: {0}", asset.AssetGuid));
+            sb.AppendLine(String.Format("\tAssetGuid: {0}", asset.AssetGuid));
             sb.AppendLine(String.Format("\tAssetType: {0}", asset.AssetType));
             sb.AppendLine("\nFrosted Hyperlink:");
             sb.AppendLine(String.Format("\tFrosted://{0};@{1}/{2}", "", asset.PartitionGuid, asset.AssetGuid));

@@ -14,6 +14,7 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
         Remove,
         Save,
         Error,
+        SelectItem,
     }
 
     internal static class Logger
@@ -66,6 +67,9 @@ namespace Extension.InstanceTracker.InstanceTrackerEditor
                     break;
                 case Action.Save:
                     action = "save";
+                    break;
+                case Action.SelectItem:
+                    action = "frosted";
                     break;
                 default:
                     action = "???";
